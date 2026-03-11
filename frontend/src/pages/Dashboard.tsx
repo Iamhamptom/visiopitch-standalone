@@ -30,9 +30,14 @@ export default function Dashboard() {
   const [creating, setCreating] = useState(false);
   const [lmStatus, setLmStatus] = useState<'online' | 'offline' | 'checking'>('checking');
 
+  const [aiEngine, setAiEngine] = useState<string>('');
+
   useEffect(() => {
     pitchApi.list().then(setItems).finally(() => setLoading(false));
-    system.lmStatus().then((s) => setLmStatus(s.status as 'online' | 'offline')).catch(() => setLmStatus('offline'));
+    system.lmStatus().then((s) => {
+      setLmStatus(s.status as 'online' | 'offline');
+      setAiEngine(s.engine || '');
+    }).catch(() => setLmStatus('offline'));
   }, []);
 
   const handleCreate = async () => {
@@ -74,7 +79,7 @@ export default function Dashboard() {
                 <WifiOff className="h-3 w-3 text-red-400" />
               )}
               <span className="text-[10px] text-text-subtle">
-                {lmStatus === 'online' ? 'LM Studio' : lmStatus === 'checking' ? 'Checking...' : 'LM Studio offline'}
+                {lmStatus === 'checking' ? 'Checking...' : lmStatus === 'online' ? (aiEngine === 'claude' ? 'Claude' : 'LM Studio') : 'AI offline'}
               </span>
             </div>
 

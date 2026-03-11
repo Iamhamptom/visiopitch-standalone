@@ -55,8 +55,14 @@ export const pitches = {
 };
 
 export const system = {
-  health: () => request<{ status: string }>('/health'),
-  lmStatus: () => request<{ status: string; models?: string[] }>('/pitches/system/status'),
+  health: () => request<{ status: string; ai_engine: string; cloud_sandbox: boolean }>('/health'),
+  lmStatus: () => request<{ status: string; engine: string; lm_studio: string; claude: string }>('/pitches/system/status'),
+};
+
+export const sandbox = {
+  status: () => request<{ cloud_available: boolean; local_available: boolean }>('/sandbox/status'),
+  createPreview: (pitchId: string) =>
+    request<{ preview_url?: string; html?: string; mode?: string }>(`/sandbox/${pitchId}/preview`, { method: 'POST' }),
 };
 
 // Types
