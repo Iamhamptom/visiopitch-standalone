@@ -84,15 +84,11 @@ async def preview_pitch(pitch: dict):
     return HTMLResponse(content=html)
 
 
-# In production, serve the built React frontend
-if FRONTEND_DIST.exists():
+# Local dev: serve built React frontend (not needed on Vercel)
+if os.environ.get("VERCEL") is None and FRONTEND_DIST.exists():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
 
     @app.get("/{path:path}")
     async def serve_spa(path: str):
         index = FRONTEND_DIST / "index.html"
         return HTMLResponse(content=index.read_text())
-else:
-    @app.get("/")
-    async def root():
-        return {"message": "VisioPitch API", "docs": "/docs"}
