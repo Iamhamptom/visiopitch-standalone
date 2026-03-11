@@ -223,39 +223,78 @@ async def chat_complete(
     if pitch_context:
         system_content += f"\n\nCurrent pitch state:\n```json\n{json.dumps(pitch_context, indent=2)}\n```"
 
-    # Try LM Studio first
+    # Try Claude first (better at tool calling), fall back to LM Studio
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        result = await _chat_claude(messages, system_content)
+        if not result.get("error"):
+            return result
+
+    # Fallback to LM Studio
     if await _is_lm_studio_online():
         return await _chat_openai(messages, system_content)
-
-    # Fallback to Claude
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        return await _chat_claude(messages, system_content)
 
     return {"content": "No AI engine available. Start LM Studio or set ANTHROPIC_API_KEY.", "tool_calls": [], "engine": "none"}
 
 
 async def _chat_openai(messages: list[dict], system_content: str) -> dict:
-    """Chat via LM Studio (OpenAI-compatible)."""
-    full_messages = [{"role": "system", "content": system_content}, *messages]
+    """Chat via LM Studio (OpenAI-compatible). Uses JSON-mode instead of tool calling for reliability."""
+    # For local models, embed tool instructions into system prompt and parse JSON from response
+    json_system = system_content + """
+
+IMPORTANT: When the user asks you to create, generate, or modify a pitch, respond with ONLY a JSON block in this exact format:
+```json
+{"action": "generate_pitch", "title": "...", "industry": "...", "accent_color": "#...", "client_name": "...", "client_company": "...", "blocks": [{"type": "hero", "props": {"headline": "...", "subheadline": "...", "cta": "..."}}, ...]}
+```
+
+Available block types and their props:
+- hero: headline, subheadline, cta
+- text: heading, body
+- story: heading, body
+- timeline: heading, items (array of {title, description})
+- deliverables: heading, items (array of {title, description})
+- proof: heading, stats (array of {value, label})
+- gallery: heading, images (array of {url, caption})
+- budget: heading, items (array of {item, cost})
+- team: heading, members (array of {name, role})
+- terms: heading, items (array of strings)
+- cta: heading, subheading, button_text
+- footer: text
+
+For other modifications, use these actions:
+- {"action": "add_block", "type": "...", "props": {...}}
+- {"action": "edit_block", "block_index": 0, "props": {...}}
+- {"action": "remove_block", "block_index": 0}
+- {"action": "update_meta", "title": "...", "accent_color": "#..."}
+
+You may include a natural language message before the JSON block. The JSON block MUST be wrapped in ```json ... ```."""
+
+    full_messages = [{"role": "system", "content": json_system}, *messages]
 
     try:
         response = await lm_client.chat.completions.create(
-            model="local-model",
+            model="meta-llama-3.1-8b-instruct",
             messages=full_messages,
-            tools=OPENAI_TOOLS,
             temperature=0.7,
             max_tokens=4096,
         )
 
         choice = response.choices[0]
-        result = {"content": choice.message.content, "tool_calls": [], "engine": "lm_studio"}
+        content = choice.message.content or ""
+        result = {"content": content, "tool_calls": [], "engine": "lm_studio"}
 
-        if choice.message.tool_calls:
-            for tc in choice.message.tool_calls:
-                result["tool_calls"].append({
-                    "name": tc.function.name,
-                    "arguments": json.loads(tc.function.arguments),
-                })
+        # Parse JSON blocks from response
+        import re
+        json_matches = re.findall(r'```json\s*(\{.*?\})\s*```', content, re.DOTALL)
+        for match in json_matches:
+            try:
+                parsed = json.loads(match)
+                action = parsed.pop("action", "generate_pitch")
+                result["tool_calls"].append({"name": action, "arguments": parsed})
+                # Remove JSON block from display content
+                result["content"] = content.replace(f"```json\n{match}\n```", "").strip()
+                result["content"] = result["content"].replace(f"```json{match}```", "").strip()
+            except json.JSONDecodeError:
+                pass
 
         return result
     except Exception as e:
