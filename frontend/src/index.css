@@ -1,23 +1,56 @@
 @import "tailwindcss";
 
 @theme {
+  /* Mobbin-inspired dark palette */
+  --color-bg: #0A0A0F;
+  --color-bg-elevated: #111116;
+  --color-bg-card: #16161D;
+  --color-bg-hover: #1C1C25;
+  --color-bg-active: #222230;
+
+  /* Text */
+  --color-text: #F5F5F7;
+  --color-text-secondary: #8E8EA0;
+  --color-text-tertiary: #5A5A6E;
+
+  /* Borders */
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-hover: rgba(255, 255, 255, 0.12);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
+
+  /* Accent — Indigo/violet */
+  --color-accent: #6366F1;
+  --color-accent-hover: #818CF8;
+  --color-accent-muted: rgba(99, 102, 241, 0.15);
+  --color-accent-glow: rgba(99, 102, 241, 0.08);
+
+  /* Status */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+
+  /* Legacy aliases */
   --color-pitch: #6366F1;
   --color-pitch-light: #818CF8;
   --color-pitch-dark: #4F46E5;
-  --color-pitch-glow: rgba(99, 102, 241, 0.15);
-  --color-surface: #09090B;
-  --color-surface-1: #111113;
-  --color-surface-2: #1A1A1E;
-  --color-surface-3: #232328;
-  --color-border: rgba(255, 255, 255, 0.06);
-  --color-border-hover: rgba(255, 255, 255, 0.12);
-  --color-text: #FAFAFA;
-  --color-text-muted: rgba(255, 255, 255, 0.5);
-  --color-text-subtle: rgba(255, 255, 255, 0.3);
-  --color-accent-green: #10B981;
-  --color-accent-amber: #F59E0B;
-  --color-accent-rose: #F43F5E;
+  --color-surface: #0A0A0F;
+  --color-surface-1: #111116;
+  --color-surface-2: #16161D;
+  --color-surface-3: #1C1C25;
+  --color-text-muted: #8E8EA0;
+  --color-text-subtle: #5A5A6E;
+
+  /* Typography */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Radius — Mobbin uses 4/8/16 */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
 }
 
 @font-face {
@@ -28,38 +61,58 @@
   src: url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
 }
 
-body {
-  margin: 0;
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  font-family: var(--font-sans);
+* {
   -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 5px; }
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Scrollbar — Mobbin minimal */
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 100px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
 
 *:focus-visible {
-  outline: 2px solid var(--color-pitch);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
-/* Glow effects */
-.glow-pitch {
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15), 0 0 60px rgba(99, 102, 241, 0.05);
+/* ── Glass ── */
+.glass {
+  background: rgba(17, 17, 22, 0.8);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.glass-card {
+  background: rgba(22, 22, 29, 0.6);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Glow effects ── */
+.glow-accent {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.12), 0 0 60px rgba(99, 102, 241, 0.04);
 }
 
 .glow-border {
   border: 1px solid transparent;
-  background: linear-gradient(var(--color-surface-1), var(--color-surface-1)) padding-box,
+  background: linear-gradient(var(--color-bg-card), var(--color-bg-card)) padding-box,
               linear-gradient(135deg, rgba(99,102,241,0.3), rgba(168,85,247,0.1), transparent) border-box;
 }
 
-/* Gradient text */
+/* ── Gradients ── */
 .text-gradient {
   background: linear-gradient(135deg, #818CF8 0%, #6366F1 50%, #A78BFA 100%);
   -webkit-background-clip: text;
@@ -67,7 +120,14 @@ body {
   background-clip: text;
 }
 
-/* Mesh gradient background */
+.aurora-bg {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 60% 80%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
+    var(--color-bg);
+}
+
 .mesh-gradient {
   background:
     radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.08) 0%, transparent 50%),
@@ -75,29 +135,150 @@ body {
     radial-gradient(ellipse at 50% 80%, rgba(59,130,246,0.04) 0%, transparent 50%);
 }
 
-/* Glass effect */
-.glass {
-  background: rgba(17, 17, 19, 0.7);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+.gradient-accent {
+  background: linear-gradient(135deg, #6366F1, #8B5CF6, #A78BFA);
 }
 
-/* Shimmer animation for loading */
+/* ── Cards — Mobbin style (border, no shadow) ── */
+.card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--color-border-hover);
+  background: var(--color-bg-hover);
+}
+
+/* ── Buttons ── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--color-text);
+  color: var(--color-bg);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border-hover);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-strong);
+}
+
+.btn-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--color-accent);
+  color: white;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-accent:hover {
+  background: var(--color-accent-hover);
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.25);
+}
+
+/* ── Input — Mobbin bottom-border style ── */
+.input-minimal {
+  width: 100%;
+  padding: 12px 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border-hover);
+  color: var(--color-text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.input-minimal:focus {
+  border-bottom-color: var(--color-accent);
+}
+
+.input-minimal::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* ── Tags / Chips — Mobbin style ── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  transition: all 0.15s ease;
+}
+
+.chip:hover {
+  background: var(--color-bg-active);
+  color: var(--color-text);
+}
+
+.chip-accent {
+  background: var(--color-accent-muted);
+  border-color: rgba(99, 102, 241, 0.2);
+  color: var(--color-accent-hover);
+}
+
+/* ── Animations ── */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
 .shimmer {
-  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.05) 50%, transparent 75%);
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%);
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
 }
 
-/* Pulse ring for status indicators */
 @keyframes pulse-ring {
   0% { transform: scale(0.8); opacity: 1; }
   100% { transform: scale(2); opacity: 0; }
+}
+
+.pulse-ring {
+  position: relative;
 }
 
 .pulse-ring::before {
@@ -108,3 +289,29 @@ body {
   border: 2px solid currentColor;
   animation: pulse-ring 2s ease-out infinite;
 }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* ── Overline text — Mobbin section headers ── */
+.overline {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-tertiary);
+}
+
+/* ── Transitions ── */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Legacy compat */
+.glow-pitch { box-shadow: 0 0 20px rgba(99, 102, 241, 0.12); }

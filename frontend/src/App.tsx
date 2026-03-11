@@ -4,6 +4,8 @@ import Landing from './pages/Landing';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import Builder from './pages/Builder';
+import Templates from './pages/Templates';
+import Onboarding from './pages/Onboarding';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -25,7 +27,9 @@ function AppRoutes() {
       <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
       <Route path="/login" element={<PublicRoute><Auth /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><Auth /></PublicRoute>} />
+      <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
       <Route path="/builder/:id" element={<ProtectedRoute><Builder /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
