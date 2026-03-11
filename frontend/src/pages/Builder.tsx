@@ -2,23 +2,20 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { pitches as pitchApi, type Pitch, type ChatResponse } from '../lib/api';
-import BlockRenderer from '../components/pitch/BlockRenderer';
-import BlockInspector from '../components/pitch/BlockInspector';
 import {
   ArrowLeft, Send, Loader2, Sparkles, Check,
   Monitor, Tablet, Smartphone, Share2, Download,
-  MessageSquare, Palette, CheckCheck,
-  PanelRightClose, PanelRightOpen,
-  GripVertical, Plus,
+  Code2, Eye, CheckCheck,
+  Copy, Maximize2, Minimize2,
 } from 'lucide-react';
 
 type ViewMode = 'desktop' | 'tablet' | 'mobile';
 
 const QUICK_ACTIONS = [
-  { label: 'SaaS Startup Pitch', prompt: 'Create a SaaS startup pitch for a B2B analytics platform raising Series A. Include hero, metrics, features, pricing, team, and CTA.' },
-  { label: 'Agency Proposal', prompt: 'Create a creative agency proposal for a rebranding project. Include hero, story, deliverables, timeline, pricing tiers, team, and CTA.' },
-  { label: 'Healthcare Platform', prompt: 'Create a healthcare technology pitch for a practice management platform targeting clinics in South Africa. Include hero, proof metrics, features, pricing, team, and CTA.' },
-  { label: 'Fintech Pitch', prompt: 'Create a fintech startup pitch for a mobile payments platform in Africa. Include hero, problem statement, features, growth metrics, pricing, team, and investor CTA.' },
+  { label: 'SaaS Startup Pitch', prompt: 'Create a stunning pitch deck for a B2B analytics SaaS platform raising Series A. Make it look like a premium tech product — gradient hero, animated metrics, 3-tier pricing, team section, and a bold CTA.' },
+  { label: 'Creative Agency Proposal', prompt: 'Design a creative agency proposal for a luxury brand rebranding project. Editorial layout, asymmetric grids, elegant typography, timeline, deliverables, and investment tiers.' },
+  { label: 'Healthcare Platform', prompt: 'Create a healthcare technology pitch for an AI-powered practice management platform. Clean, trustworthy design with teal accents, proof metrics, features grid, pricing, and compliance section.' },
+  { label: 'Music Label Pitch', prompt: 'Build a pitch deck for a music label partnership — dark luxury aesthetic, bold gradients, artist metrics, distribution features, revenue splits, and a signing CTA. Make it feel like LVMH meets Spotify.' },
 ];
 
 export default function Builder() {
@@ -33,12 +30,12 @@ export default function Builder() {
   const [chatLoading, setChatLoading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('desktop');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [selectedBlockIndex, setSelectedBlockIndex] = useState<number | null>(null);
-  const [showInspector, setShowInspector] = useState(false);
   const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied'>('idle');
-  const [accentColor, setAccentColor] = useState('#6366F1');
+  const [showCode, setShowCode] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const templatePromptSent = useRef(false);
 
@@ -47,7 +44,6 @@ export default function Builder() {
     if (!id) return;
     pitchApi.get(id).then((p) => {
       setPitch(p);
-      setAccentColor(p.accent_color || '#6366F1');
       setLoading(false);
     }).catch(() => navigate('/dashboard'));
   }, [id, navigate]);
@@ -56,7 +52,7 @@ export default function Builder() {
   useEffect(() => {
     if (!pitch || templatePromptSent.current) return;
     const prompt = searchParams.get('prompt');
-    if (prompt && pitch.blocks.length === 0) {
+    if (prompt && !pitch.html_content && pitch.blocks.length === 0) {
       templatePromptSent.current = true;
       handleSend(prompt);
     }
@@ -67,6 +63,18 @@ export default function Builder() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
+  // Update iframe when html_content changes
+  useEffect(() => {
+    if (!pitch?.html_content || !iframeRef.current) return;
+    const iframe = iframeRef.current;
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(pitch.html_content);
+      doc.close();
+    }
+  }, [pitch?.html_content, viewMode]);
+
   // Auto-save
   const triggerAutoSave = useCallback((updatedPitch?: Pitch) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -75,7 +83,11 @@ export default function Builder() {
       if (!p || !id) return;
       setSaveStatus('saving');
       try {
-        await pitchApi.update(id, { blocks: p.blocks, title: p.title, accent_color: p.accent_color });
+        await pitchApi.update(id, {
+          title: p.title,
+          accent_color: p.accent_color,
+          html_content: p.html_content,
+        });
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
       } catch {
@@ -95,7 +107,6 @@ export default function Builder() {
       const res: ChatResponse = await pitchApi.chat(id, msg);
       setChatMessages((prev) => [...prev, { role: 'assistant', content: res.message }]);
       setPitch(res.pitch);
-      setAccentColor(res.pitch.accent_color || accentColor);
       triggerAutoSave(res.pitch);
     } catch (err) {
       setChatMessages((prev) => [
@@ -105,63 +116,6 @@ export default function Builder() {
     } finally {
       setChatLoading(false);
     }
-  };
-
-  // Block operations
-  const handleBlockUpdate = (index: number, props: Record<string, any>) => {
-    if (!pitch) return;
-    const blocks = [...pitch.blocks];
-    blocks[index] = { ...blocks[index], props };
-    const updated = { ...pitch, blocks };
-    setPitch(updated);
-    triggerAutoSave(updated);
-  };
-
-  const handleBlockMove = (index: number, direction: 'up' | 'down') => {
-    if (!pitch) return;
-    const blocks = [...pitch.blocks];
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= blocks.length) return;
-    [blocks[index], blocks[newIndex]] = [blocks[newIndex], blocks[index]];
-    const updated = { ...pitch, blocks };
-    setPitch(updated);
-    setSelectedBlockIndex(newIndex);
-    triggerAutoSave(updated);
-  };
-
-  const handleBlockDelete = (index: number) => {
-    if (!pitch) return;
-    const blocks = pitch.blocks.filter((_, i) => i !== index);
-    const updated = { ...pitch, blocks };
-    setPitch(updated);
-    setSelectedBlockIndex(null);
-    setShowInspector(false);
-    triggerAutoSave(updated);
-  };
-
-  const handleBlockDuplicate = (index: number) => {
-    if (!pitch) return;
-    const blocks = [...pitch.blocks];
-    const dup = { ...blocks[index], id: crypto.randomUUID(), props: { ...blocks[index].props } };
-    blocks.splice(index + 1, 0, dup);
-    const updated = { ...pitch, blocks };
-    setPitch(updated);
-    setSelectedBlockIndex(index + 1);
-    triggerAutoSave(updated);
-  };
-
-  const handleBlockToggleVisibility = (index: number) => {
-    if (!pitch) return;
-    const blocks = [...pitch.blocks];
-    blocks[index] = { ...blocks[index], visible: !blocks[index].visible };
-    const updated = { ...pitch, blocks };
-    setPitch(updated);
-    triggerAutoSave(updated);
-  };
-
-  const selectBlock = (index: number) => {
-    setSelectedBlockIndex(index);
-    setShowInspector(true);
   };
 
   // Share
@@ -178,39 +132,26 @@ export default function Builder() {
     }
   };
 
-  // Export
+  // Export HTML
   const handleExport = async () => {
-    if (!pitch) return;
-    try {
-      const res = await fetch('/api/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pitch),
-      });
-      const html = await res.text();
-      const blob = new Blob([html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${pitch.title || 'pitch'}.html`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      // silent fail
-    }
+    if (!pitch?.html_content) return;
+    const blob = new Blob([pitch.html_content], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${pitch.title || 'pitch'}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
-  // Color change
-  const handleAccentChange = (color: string) => {
-    if (!pitch) return;
-    setAccentColor(color);
-    const updated = { ...pitch, accent_color: color };
-    setPitch(updated);
-    triggerAutoSave(updated);
+  // Copy HTML
+  const handleCopyCode = async () => {
+    if (!pitch?.html_content) return;
+    await navigator.clipboard.writeText(pitch.html_content);
   };
 
   const viewModeWidths: Record<ViewMode, string> = {
-    desktop: 'max-w-[900px]',
+    desktop: 'w-full',
     tablet: 'max-w-[768px]',
     mobile: 'max-w-[375px]',
   };
@@ -224,35 +165,36 @@ export default function Builder() {
     );
   }
 
-  const hasBlocks = pitch?.blocks && pitch.blocks.length > 0;
-  const isNewPitch = !hasBlocks && chatMessages.length === 0;
-  const selectedBlock = selectedBlockIndex !== null && pitch?.blocks[selectedBlockIndex] ? pitch.blocks[selectedBlockIndex] : null;
+  const hasContent = !!pitch?.html_content;
+  const isNewPitch = !hasContent && chatMessages.length === 0;
 
   return (
-    <div className="h-screen bg-bg-elevated flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#0C0C0E] flex flex-col overflow-hidden">
       {/* ── Top Bar ── */}
-      <div className="flex items-center justify-between px-4 h-12 border-b border-border bg-bg shrink-0">
+      <div className="flex items-center justify-between px-4 h-11 border-b border-white/[0.06] bg-[#111113] shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/dashboard')}
-            className="p-1.5 rounded-lg hover:bg-bg-card text-text-secondary hover:text-text transition-colors"
+            className="p-1.5 rounded-lg hover:bg-white/[0.06] text-white/40 hover:text-white/70 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <div className="h-6 w-6 rounded-md bg-accent flex items-center justify-center">
-            <Sparkles className="h-3 w-3 text-text-inverted" />
+          <div className="h-6 w-6 rounded-md bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+            <Sparkles className="h-3 w-3 text-white" />
           </div>
-          <span className="text-sm font-semibold truncate max-w-[200px]">
+          <span className="text-sm font-semibold text-white/90 truncate max-w-[200px]">
             {pitch?.title || 'Pitch Builder'}
           </span>
-          {pitch?.status && (
-            <span className="chip text-[10px] py-0.5">{pitch.status}</span>
+          {pitch?.industry && pitch.industry !== 'general' && (
+            <span className="text-[10px] font-medium text-white/30 uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/[0.06]">
+              {pitch.industry}
+            </span>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {/* View mode */}
-          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-bg p-0.5">
+          <div className="flex items-center gap-0.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-0.5 mr-2">
             {([
               { mode: 'desktop' as ViewMode, icon: Monitor },
               { mode: 'tablet' as ViewMode, icon: Tablet },
@@ -262,7 +204,7 @@ export default function Builder() {
                 key={mode}
                 onClick={() => setViewMode(mode)}
                 className={`p-1.5 rounded-md transition-all ${
-                  viewMode === mode ? 'bg-bg-card text-text' : 'text-text-tertiary hover:text-text'
+                  viewMode === mode ? 'bg-white/[0.08] text-white' : 'text-white/30 hover:text-white/60'
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -270,42 +212,52 @@ export default function Builder() {
             ))}
           </div>
 
-          {/* Accent color picker */}
-          <div className="flex items-center gap-1 ml-2">
-            <Palette className="h-3.5 w-3.5 text-text-tertiary" />
-            <input
-              type="color"
-              value={accentColor}
-              onChange={(e) => handleAccentChange(e.target.value)}
-              className="w-6 h-6 rounded-md border border-border cursor-pointer bg-transparent"
-              title="Accent color"
-            />
-          </div>
-
           {/* Save status */}
           <AnimatePresence mode="wait">
             {saveStatus === 'saving' && (
               <motion.span key="saving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="flex items-center gap-1.5 text-[11px] text-text-tertiary ml-2">
+                className="flex items-center gap-1.5 text-[11px] text-white/30 mr-2">
                 <Loader2 className="h-3 w-3 animate-spin" /> Saving
               </motion.span>
             )}
             {saveStatus === 'saved' && (
               <motion.span key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="flex items-center gap-1.5 text-[11px] text-success ml-2">
+                className="flex items-center gap-1.5 text-[11px] text-emerald-400 mr-2">
                 <Check className="h-3 w-3" /> Saved
               </motion.span>
             )}
           </AnimatePresence>
 
-          <div className="h-4 w-px bg-border mx-1.5" />
+          {/* Code toggle */}
+          <button
+            onClick={() => setShowCode(!showCode)}
+            disabled={!hasContent}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-20 ${
+              showCode
+                ? 'bg-white/[0.08] text-white'
+                : 'text-white/40 hover:text-white/70 hover:bg-white/[0.04]'
+            }`}
+          >
+            <Code2 className="h-3.5 w-3.5" />
+            <span className="hidden md:inline">Code</span>
+          </button>
+
+          {/* Fullscreen */}
+          <button
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            disabled={!hasContent}
+            className="p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors disabled:opacity-20"
+          >
+            {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          </button>
+
+          <div className="h-4 w-px bg-white/[0.06] mx-1" />
 
           {/* Export */}
           <button
             onClick={handleExport}
-            disabled={!hasBlocks}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-bg-card text-text-secondary hover:text-text transition-colors disabled:opacity-30"
-            title="Download HTML"
+            disabled={!hasContent}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors disabled:opacity-20"
           >
             <Download className="h-3.5 w-3.5" />
             <span className="hidden md:inline">Export</span>
@@ -314,253 +266,224 @@ export default function Builder() {
           {/* Share */}
           <button
             onClick={handleShare}
-            disabled={!hasBlocks}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-accent text-text-inverted hover:bg-accent-hover transition-colors disabled:opacity-30"
+            disabled={!hasContent}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/[0.1] text-white hover:bg-white/[0.15] transition-colors disabled:opacity-20"
           >
             {shareStatus === 'copied' ? (
-              <>
-                <CheckCheck className="h-3.5 w-3.5" />
-                <span>Copied!</span>
-              </>
-            ) : shareStatus === 'copying' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <><CheckCheck className="h-3.5 w-3.5" /><span>Copied!</span></>
             ) : (
-              <>
-                <Share2 className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">Share</span>
-              </>
+              <><Share2 className="h-3.5 w-3.5" /><span className="hidden md:inline">Share</span></>
             )}
-          </button>
-
-          {/* Inspector toggle */}
-          <button
-            onClick={() => setShowInspector(!showInspector)}
-            className={`p-1.5 rounded-lg transition-colors ${
-              showInspector ? 'bg-bg-card text-text' : 'text-text-tertiary hover:text-text hover:bg-bg-card'
-            }`}
-            title={showInspector ? 'Hide inspector' : 'Show inspector'}
-          >
-            {showInspector ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
           </button>
         </div>
       </div>
 
-      {/* ── Main: Chat | Canvas | Inspector ── */}
+      {/* ── Main: Chat | Canvas/Code ── */}
       <div className="flex flex-1 min-h-0">
         {/* Chat panel */}
-        <div className="w-[340px] shrink-0 border-r border-border flex flex-col bg-bg">
-          {/* Chat header */}
-          <div className="px-4 py-3 border-b border-border">
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-text-inverted" />
-              </div>
-              <div>
-                <span className="text-xs font-semibold block">Pitch AI</span>
-                <span className="text-[10px] text-text-tertiary">
-                  {chatLoading ? 'Designing...' : isNewPitch ? 'Ready to build' : `${pitch?.blocks.length || 0} blocks`}
-                </span>
+        {!isFullscreen && (
+          <div className="w-[380px] shrink-0 border-r border-white/[0.06] flex flex-col bg-[#111113]">
+            {/* Chat header */}
+            <div className="px-4 py-3 border-b border-white/[0.06]">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-white/90 block">VisioPitch AI</span>
+                  <span className="text-[10px] text-white/30">
+                    {chatLoading ? 'Generating code...' : isNewPitch ? 'Describe your pitch' : 'Ready to iterate'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {isNewPitch && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="py-4"
-              >
-                <div className="h-12 w-12 rounded-2xl bg-bg-card flex items-center justify-center mx-auto mb-3">
-                  <MessageSquare className="h-5 w-5 text-text-tertiary" />
-                </div>
-                <p className="text-sm font-semibold text-center mb-1">What are you pitching?</p>
-                <p className="text-[11px] text-text-secondary text-center mb-4 max-w-[260px] mx-auto leading-relaxed">
-                  Describe your pitch and AI will build it instantly. Or pick a starter below.
-                </p>
-
-                <div className="space-y-1.5">
-                  {QUICK_ACTIONS.map((action) => (
-                    <button
-                      key={action.label}
-                      onClick={() => handleSend(action.prompt)}
-                      className="w-full text-left rounded-xl border border-border px-3.5 py-2.5 text-[11px] text-text-secondary hover:text-text hover:border-border-hover hover:bg-bg-card transition-all"
-                    >
-                      <span className="font-medium text-text">{action.label}</span>
-                      <span className="block text-[10px] text-text-tertiary mt-0.5 line-clamp-1">
-                        {action.prompt.slice(0, 60)}...
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            <AnimatePresence>
-              {chatMessages.map((msg, i) => (
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {isNewPitch && (
                 <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className={`rounded-xl px-3.5 py-2.5 text-[11px] leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-accent text-text-inverted ml-6 rounded-br-sm'
-                      : 'bg-bg-card border border-border text-text-secondary mr-4 rounded-bl-sm'
-                  }`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="py-4"
                 >
-                  {msg.role === 'assistant' && (
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Sparkles className="h-2.5 w-2.5 text-brand" />
-                      <span className="text-[9px] font-semibold text-brand">AI</span>
-                    </div>
-                  )}
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 border border-indigo-500/20 flex items-center justify-center mx-auto mb-4">
+                    <Sparkles className="h-6 w-6 text-indigo-400" />
+                  </div>
+                  <p className="text-sm font-semibold text-white/90 text-center mb-1">What are you building?</p>
+                  <p className="text-[11px] text-white/40 text-center mb-5 max-w-[280px] mx-auto leading-relaxed">
+                    Describe your pitch and AI will generate a complete, custom-designed page with unique layouts, animations, and styling.
+                  </p>
+
+                  <div className="space-y-2">
+                    {QUICK_ACTIONS.map((action) => (
+                      <button
+                        key={action.label}
+                        onClick={() => handleSend(action.prompt)}
+                        className="w-full text-left rounded-xl border border-white/[0.06] px-4 py-3 hover:border-white/[0.12] hover:bg-white/[0.02] transition-all group"
+                      >
+                        <span className="text-[12px] font-medium text-white/80 group-hover:text-white/95 block">
+                          {action.label}
+                        </span>
+                        <span className="text-[10px] text-white/25 mt-0.5 line-clamp-1 block">
+                          {action.prompt.slice(0, 80)}...
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </motion.div>
-              ))}
-            </AnimatePresence>
+              )}
 
-            {chatLoading && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center gap-2.5 px-4 py-3 text-xs text-text-tertiary"
+              <AnimatePresence>
+                {chatMessages.map((msg, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className={`rounded-xl px-3.5 py-2.5 text-[12px] leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-white/[0.08] text-white/90 ml-8 rounded-br-sm'
+                        : 'bg-white/[0.03] border border-white/[0.06] text-white/60 mr-6 rounded-bl-sm'
+                    }`}
+                  >
+                    {msg.role === 'assistant' && (
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <Sparkles className="h-2.5 w-2.5 text-indigo-400" />
+                        <span className="text-[9px] font-semibold text-indigo-400 uppercase tracking-wider">AI</span>
+                      </div>
+                    )}
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {chatLoading && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center gap-3 px-4 py-4"
+                >
+                  <div className="flex gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <span className="text-xs text-white/30">Generating your pitch...</span>
+                </motion.div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Input */}
+            <div className="p-3 border-t border-white/[0.06]">
+              <form
+                onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+                className="flex items-center gap-2"
               >
-                <div className="flex gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-brand animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="h-1.5 w-1.5 rounded-full bg-brand animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="h-1.5 w-1.5 rounded-full bg-brand animate-bounce" style={{ animationDelay: '300ms' }} />
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder={isNewPitch ? 'Describe your pitch...' : 'Ask for changes...'}
+                  disabled={chatLoading}
+                  className="flex-1 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-[12px] text-white/90 placeholder:text-white/20 focus:border-white/[0.12] focus:ring-0 focus:outline-none transition-all disabled:opacity-50"
+                />
+                <button
+                  type="submit"
+                  disabled={chatLoading || !chatInput.trim()}
+                  className="p-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-white/70 transition-all active:scale-95 disabled:opacity-20"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ── Canvas / Code Panel ── */}
+        <div className="flex-1 min-w-0 flex flex-col bg-[#0C0C0E]">
+          {showCode && hasContent ? (
+            /* ── Code View ── */
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06] bg-[#111113]">
+                <div className="flex items-center gap-2">
+                  <Code2 className="h-3.5 w-3.5 text-white/30" />
+                  <span className="text-[11px] font-medium text-white/50">HTML Source</span>
+                  <span className="text-[10px] text-white/20 font-mono">
+                    {((pitch?.html_content?.length || 0) / 1024).toFixed(1)}KB
+                  </span>
                 </div>
-                Building your pitch...
-              </motion.div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* Input */}
-          <div className="p-3 border-t border-border">
-            <form
-              onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-              className="flex items-center gap-2"
-            >
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder={isNewPitch ? 'Describe your pitch...' : 'Ask for changes...'}
-                disabled={chatLoading}
-                className="flex-1 rounded-xl border border-border bg-bg px-3.5 py-2.5 text-xs text-text placeholder:text-text-tertiary focus:border-text focus:ring-0 focus:outline-none transition-all disabled:opacity-50"
-              />
-              <button
-                type="submit"
-                disabled={chatLoading || !chatInput.trim()}
-                className="p-2.5 rounded-xl bg-accent hover:bg-accent-hover text-text-inverted transition-all active:scale-95 disabled:opacity-30"
-              >
-                <Send className="h-3.5 w-3.5" />
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* ── Canvas ── */}
-        <div className="flex-1 min-w-0 bg-bg-elevated overflow-auto">
-          <div className={`mx-auto px-6 py-8 transition-all duration-300 ${viewModeWidths[viewMode]}`}>
-            {(!hasBlocks) ? (
+                <button
+                  onClick={handleCopyCode}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors"
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy
+                </button>
+              </div>
+              <pre className="flex-1 overflow-auto p-4 text-[11px] leading-[1.6] text-white/60 font-mono selection:bg-indigo-500/30">
+                <code>{pitch?.html_content || ''}</code>
+              </pre>
+            </div>
+          ) : hasContent ? (
+            /* ── Live Preview (iframe) ── */
+            <div className="flex-1 flex items-start justify-center overflow-auto p-4">
+              <div className={`${viewModeWidths[viewMode]} mx-auto transition-all duration-300 h-full`}>
+                <div className="relative h-full rounded-xl overflow-hidden border border-white/[0.06] bg-[#0A0A0F] shadow-2xl shadow-black/50">
+                  <iframe
+                    ref={iframeRef}
+                    title="Pitch Preview"
+                    className="w-full h-full border-0"
+                    sandbox="allow-scripts allow-same-origin"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ── Empty State ── */
+            <div className="flex-1 flex items-center justify-center">
               <motion.div
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center"
+                className="flex flex-col items-center text-center max-w-md"
               >
-                <div className="h-20 w-20 rounded-2xl bg-bg-card flex items-center justify-center mb-6">
-                  <Sparkles className="h-8 w-8 text-text-tertiary" />
+                <div className="relative mb-8">
+                  <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-indigo-500/10 to-purple-600/10 border border-indigo-500/20 flex items-center justify-center">
+                    <Eye className="h-10 w-10 text-indigo-500/40" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <Sparkles className="h-3 w-3 text-white" />
+                  </div>
                 </div>
-                <h2 className="text-lg font-bold mb-2">Your canvas is empty</h2>
-                <p className="text-sm text-text-secondary max-w-xs leading-relaxed">
+
+                <h2 className="text-xl font-bold text-white/90 mb-2">Your canvas is empty</h2>
+                <p className="text-sm text-white/30 leading-relaxed mb-2">
                   {chatLoading
-                    ? 'Building your pitch — blocks will appear here momentarily...'
-                    : 'Use the chat to describe your pitch. AI will generate a complete deck with 7-10 sections.'}
+                    ? 'Generating your pitch — a custom-designed page will appear here...'
+                    : 'Describe your pitch in the chat. AI will generate a complete, unique design — not templates, real code.'}
                 </p>
                 {chatLoading && (
-                  <div className="mt-6 flex items-center gap-2 text-xs text-text-tertiary">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Generating blocks...
+                  <div className="mt-4 flex items-center gap-2.5">
+                    <Loader2 className="h-4 w-4 animate-spin text-indigo-400" />
+                    <span className="text-xs text-white/30">Writing HTML & CSS...</span>
                   </div>
                 )}
               </motion.div>
-            ) : (
-              <div className="space-y-3">
-                {pitch!.blocks.map((block, i) => (
-                  block.visible !== false && (
-                    <motion.div
-                      key={block.id || i}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.04, duration: 0.3 }}
-                      className="relative group"
-                    >
-                      {/* Block drag handle + index */}
-                      <div className="absolute -left-8 top-4 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center gap-1">
-                        <GripVertical className="h-4 w-4 text-text-tertiary cursor-grab" />
-                        <span className="text-[9px] text-text-tertiary font-mono">{i + 1}</span>
-                      </div>
-
-                      <BlockRenderer
-                        block={block}
-                        accent={accentColor}
-                        industry={i === 0 ? pitch?.industry : undefined}
-                        selected={selectedBlockIndex === i}
-                        onSelect={() => selectBlock(i)}
-                      />
-                    </motion.div>
-                  )
-                ))}
-
-                {/* Add block placeholder */}
-                <button
-                  onClick={() => {
-                    setChatInput('Add a new section: ');
-                    document.querySelector<HTMLInputElement>('input[placeholder]')?.focus();
-                  }}
-                  className="w-full py-6 rounded-2xl border-2 border-dashed border-border hover:border-border-hover flex items-center justify-center gap-2 text-xs text-text-tertiary hover:text-text-secondary transition-all"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add block via AI
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Inspector ── */}
-        <AnimatePresence>
-          {showInspector && selectedBlock && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 300, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="shrink-0 overflow-hidden"
-            >
-              <BlockInspector
-                block={selectedBlock}
-                blockIndex={selectedBlockIndex!}
-                totalBlocks={pitch?.blocks.length || 0}
-                onUpdate={handleBlockUpdate}
-                onMove={handleBlockMove}
-                onDelete={handleBlockDelete}
-                onDuplicate={handleBlockDuplicate}
-                onToggleVisibility={handleBlockToggleVisibility}
-                onClose={() => {
-                  setShowInspector(false);
-                  setSelectedBlockIndex(null);
-                }}
-              />
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        </div>
       </div>
+
+      {/* Fullscreen toggle hint */}
+      {isFullscreen && (
+        <button
+          onClick={() => setIsFullscreen(false)}
+          className="fixed top-3 left-3 z-50 p-2 rounded-lg bg-black/80 border border-white/10 text-white/50 hover:text-white/80 transition-colors backdrop-blur-sm"
+        >
+          <Minimize2 className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }

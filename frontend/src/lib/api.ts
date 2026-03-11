@@ -89,6 +89,7 @@ export interface Pitch {
   client_company: string | null;
   accent_color: string;
   blocks: PitchBlock[];
+  html_content: string | null;
   brand_config: Record<string, unknown>;
   facts: { key: string; value: string }[];
   created_at: string;

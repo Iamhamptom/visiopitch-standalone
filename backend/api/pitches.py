@@ -1,4 +1,7 @@
-"""Pitch CRUD + chat routes (Supabase backend)."""
+"""Pitch CRUD + chat routes (Supabase backend).
+
+Lovable-style: AI generates freeform HTML, stored as html_content on pitch.
+"""
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -32,6 +35,7 @@ class UpdatePitchRequest(BaseModel):
     client_company: Optional[str] = None
     accent_color: Optional[str] = None
     blocks: Optional[list] = None
+    html_content: Optional[str] = None
     brand_config: Optional[dict] = None
     facts: Optional[list] = None
 
@@ -46,7 +50,7 @@ class ChatRequest(BaseModel):
 async def list_pitches(user: dict = Depends(require_user)):
     sb = get_supabase()
     result = sb.table("vp_pitches") \
-        .select("*") \
+        .select("id,title,description,industry,status,client_name,client_company,accent_color,created_at,updated_at") \
         .eq("user_id", user["id"]) \
         .order("updated_at", desc=True) \
         .execute()
@@ -64,6 +68,7 @@ async def create_pitch(req: CreatePitchRequest, user: dict = Depends(require_use
         "client_company": req.client_company,
         "accent_color": req.accent_color,
         "blocks": [],
+        "html_content": None,
         "brand_config": {},
         "facts": [],
     }
@@ -118,15 +123,14 @@ async def chat(pitch_id: str, req: ChatRequest, user: dict = Depends(require_use
     messages = conv.get("messages") or []
     messages.append({"role": "user", "content": req.message})
 
-    # Build pitch context
+    # Build pitch context — include current HTML for editing
     pitch_context = {
         "title": pitch["title"],
         "industry": pitch["industry"],
         "client_name": pitch.get("client_name"),
         "client_company": pitch.get("client_company"),
         "accent_color": pitch["accent_color"],
-        "blocks": pitch.get("blocks") or [],
-        "block_count": len(pitch.get("blocks") or []),
+        "html_content": pitch.get("html_content") or "",
     }
 
     # Get AI response
@@ -194,9 +198,33 @@ def _get_user_pitch(pitch_id: str, user_id: str) -> dict:
 
 def _apply_tool_call(name: str, args: dict, pitch: dict, sb, pitch_id: str) -> str:
     """Apply an AI tool call to mutate the pitch in Supabase."""
-    blocks = list(pitch.get("blocks") or [])
 
-    if name == "generate_pitch":
+    if name == "set_html":
+        # Core Lovable-style tool: set complete HTML content
+        update = {}
+        html = args.get("html", "")
+        update["html_content"] = html
+
+        # Also update metadata if provided
+        for key in ("title", "accent_color", "client_name", "client_company", "industry"):
+            if key in args and args[key]:
+                update[key] = args[key]
+
+        sb.table("vp_pitches").update(update).eq("id", pitch_id).execute()
+        html_size = len(html)
+        return f"Set HTML content ({html_size:,} bytes)"
+
+    elif name == "update_meta":
+        update = {}
+        for key in ("title", "accent_color", "client_name", "client_company", "industry"):
+            if key in args and args[key]:
+                update[key] = args[key]
+        if update:
+            sb.table("vp_pitches").update(update).eq("id", pitch_id).execute()
+        return "Updated pitch metadata"
+
+    # Legacy block tools — keep for backward compatibility with existing pitches
+    elif name == "generate_pitch":
         update = {}
         if "title" in args:
             update["title"] = args["title"]
@@ -218,6 +246,7 @@ def _apply_tool_call(name: str, args: dict, pitch: dict, sb, pitch_id: str) -> s
         return f"Generated pitch with {len(new_blocks)} blocks"
 
     elif name == "add_block":
+        blocks = list(pitch.get("blocks") or [])
         block = {
             "id": str(uuid.uuid4()),
             "type": args["type"],
@@ -236,6 +265,7 @@ def _apply_tool_call(name: str, args: dict, pitch: dict, sb, pitch_id: str) -> s
         return f"Added {args['type']} block"
 
     elif name == "edit_block":
+        blocks = list(pitch.get("blocks") or [])
         idx = args.get("block_index", 0)
         if 0 <= idx < len(blocks):
             blocks[idx]["props"] = {**blocks[idx].get("props", {}), **args.get("props", {})}
@@ -244,6 +274,7 @@ def _apply_tool_call(name: str, args: dict, pitch: dict, sb, pitch_id: str) -> s
         return "Block index out of range"
 
     elif name == "remove_block":
+        blocks = list(pitch.get("blocks") or [])
         idx = args.get("block_index", 0)
         if 0 <= idx < len(blocks):
             removed = blocks.pop(idx)

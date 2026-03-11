@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { pitches as pitchApi, type Pitch } from '../lib/api';
@@ -9,6 +9,7 @@ export default function PitchViewer() {
   const { id } = useParams<{ id: string }>();
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [error, setError] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -16,6 +17,17 @@ export default function PitchViewer() {
       .then(setPitch)
       .catch(() => setError(true));
   }, [id]);
+
+  // Write HTML content to iframe
+  useEffect(() => {
+    if (!pitch?.html_content || !iframeRef.current) return;
+    const doc = iframeRef.current.contentDocument || iframeRef.current.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(pitch.html_content);
+      doc.close();
+    }
+  }, [pitch?.html_content]);
 
   if (error) {
     return (
@@ -36,6 +48,21 @@ export default function PitchViewer() {
     );
   }
 
+  // New: HTML-based pitch — render in full-page iframe
+  if (pitch.html_content) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0F]">
+        <iframe
+          ref={iframeRef}
+          title={pitch.title}
+          className="w-full min-h-screen border-0"
+          sandbox="allow-scripts allow-same-origin"
+        />
+      </div>
+    );
+  }
+
+  // Legacy: Block-based pitch — render with BlockRenderer
   const accent = pitch.accent_color || '#6366F1';
 
   return (
