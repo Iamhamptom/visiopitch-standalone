@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../lib/auth';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, ArrowRight } from 'lucide-react';
 
 export default function Auth() {
   const location = useLocation();
@@ -20,7 +20,6 @@ export default function Auth() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       if (isRegister) {
         await register(email, name, password);
@@ -35,86 +34,78 @@ export default function Auth() {
     }
   };
 
-  const inputClass = "w-full rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-text placeholder:text-text-subtle focus:border-pitch focus:ring-1 focus:ring-pitch/30 focus:outline-none transition-all";
-
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center p-6 mesh-gradient relative">
-      {/* Ambient glow */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[400px] bg-pitch/5 rounded-full blur-[120px] pointer-events-none" />
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="w-full max-w-sm relative"
-      >
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-pitch to-purple-500 flex items-center justify-center shadow-lg shadow-pitch/20">
-            <Sparkles className="h-5 w-5 text-white" />
+    <div className="min-h-screen bg-bg flex">
+      {/* Left — Form */}
+      <div className="flex-1 flex items-center justify-center p-8">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-[360px]"
+        >
+          {/* Logo */}
+          <div className="flex items-center gap-2.5 mb-10">
+            <div className="h-9 w-9 rounded-lg gradient-accent flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <span className="font-bold text-[15px]">VisioPitch</span>
           </div>
-          <span className="font-bold text-lg tracking-tight">VisioPitch</span>
-        </div>
 
-        <div className="glow-border rounded-3xl p-7">
-          <h1 className="text-xl font-bold mb-1">
-            {isRegister ? 'Create your account' : 'Welcome back'}
+          <h1 className="text-2xl font-bold tracking-tight mb-1">
+            {isRegister ? 'Create an account' : 'Welcome back'}
           </h1>
-          <p className="text-xs text-text-muted mb-7">
+          <p className="text-sm text-text-secondary mb-8">
             {isRegister
-              ? 'Start building pitches that close deals'
-              : 'Sign in to your VisioPitch account'}
+              ? 'Start building proposals that close deals.'
+              : 'Sign in to continue building.'}
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {isRegister && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                transition={{ duration: 0.3 }}
-              >
-                <label className="block text-xs font-medium text-text-muted mb-1.5">Name</label>
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-2">Full name</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Dr. Hampton"
                   required
-                  className={inputClass}
+                  className="input-minimal"
                 />
-              </motion.div>
+              </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-text-muted mb-1.5">Email</label>
+              <label className="block text-xs font-medium text-text-secondary mb-2">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
                 required
-                className={inputClass}
+                className="input-minimal"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-text-muted mb-1.5">Password</label>
+              <label className="block text-xs font-medium text-text-secondary mb-2">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Minimum 6 characters"
                 required
                 minLength={6}
-                className={inputClass}
+                className="input-minimal"
               />
             </div>
 
             {error && (
               <motion.div
-                initial={{ opacity: 0, y: -5 }}
+                initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-xs text-red-400"
+                className="rounded-lg bg-error/10 border border-error/20 px-4 py-2.5 text-xs text-error"
               >
                 {error}
               </motion.div>
@@ -123,28 +114,56 @@ export default function Auth() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-pitch to-purple-500 hover:from-pitch-dark hover:to-purple-600 text-white font-semibold text-sm py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-pitch/25 active:scale-[0.98] disabled:opacity-50"
+              className="w-full btn-primary justify-center py-3 text-sm disabled:opacity-50"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
-              ) : isRegister ? (
-                'Create Account'
               ) : (
-                'Sign In'
+                <>
+                  {isRegister ? 'Create Account' : 'Sign In'}
+                  <ArrowRight className="h-4 w-4" />
+                </>
               )}
             </button>
           </form>
 
-          <div className="mt-5 text-center">
+          <div className="mt-6 text-center">
             <button
               onClick={() => navigate(isRegister ? '/login' : '/register')}
-              className="text-xs text-text-muted hover:text-pitch transition-colors"
+              className="text-xs text-text-tertiary hover:text-text transition-colors"
             >
-              {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+              {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Create one"}
             </button>
           </div>
+        </motion.div>
+      </div>
+
+      {/* Right — Branding panel */}
+      <div className="hidden lg:flex w-[480px] aurora-bg border-l border-border flex-col items-center justify-center p-12">
+        <div className="max-w-[280px] text-center">
+          <div className="h-16 w-16 rounded-2xl gradient-accent flex items-center justify-center mx-auto mb-6 animate-float">
+            <Sparkles className="h-7 w-7 text-white" />
+          </div>
+          <h2 className="text-xl font-bold mb-3">AI-powered proposals</h2>
+          <p className="text-sm text-text-secondary leading-relaxed mb-8">
+            Describe your pitch. AI designs it. Share with one click.
+            Built for professionals who close deals.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { v: '12', l: 'Templates' },
+              { v: '<30s', l: 'To Generate' },
+              { v: '12', l: 'Block Types' },
+              { v: 'Free', l: 'To Start' },
+            ].map((s) => (
+              <div key={s.l} className="card p-3 text-center">
+                <div className="text-sm font-bold text-accent">{s.v}</div>
+                <div className="text-[10px] text-text-tertiary">{s.l}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
