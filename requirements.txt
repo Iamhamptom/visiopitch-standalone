@@ -53,4 +53,5 @@ uvicorn==0.41.0
 uvloop==0.22.1
 watchfiles==1.1.1
 wcmatch==10.1
+supabase==2.15.2
 websockets==16.0
