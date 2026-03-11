@@ -64,7 +64,7 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-bg aurora-bg flex items-center justify-center p-6">
+    <div className="min-h-screen bg-bg flex items-center justify-center p-6">
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -89,12 +89,12 @@ export default function Onboarding() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -30 }}
             transition={{ duration: 0.3 }}
-            className="glass-card rounded-2xl p-8"
+            className="rounded-2xl border border-border bg-bg p-8"
           >
             {/* Icon */}
             <div className="flex items-center justify-center mb-6">
-              <div className="h-14 w-14 rounded-2xl gradient-accent flex items-center justify-center">
-                <current.icon className="h-6 w-6 text-white" />
+              <div className="h-14 w-14 rounded-2xl bg-accent flex items-center justify-center">
+                <current.icon className="h-6 w-6 text-text-inverted" />
               </div>
             </div>
 
@@ -124,10 +124,10 @@ export default function Onboarding() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.1 }}
-                    className="flex items-start gap-4 p-4 rounded-xl bg-bg-hover/50"
+                    className="flex items-start gap-4 p-4 rounded-xl bg-bg-card"
                   >
-                    <div className="h-10 w-10 rounded-lg bg-accent-muted flex items-center justify-center shrink-0">
-                      <f.icon className="h-4 w-4 text-accent-hover" />
+                    <div className="h-10 w-10 rounded-lg bg-bg-hover flex items-center justify-center shrink-0">
+                      <f.icon className="h-4 w-4 text-text-secondary" />
                     </div>
                     <div>
                       <div className="text-sm font-semibold mb-0.5">{f.label}</div>
@@ -147,8 +147,8 @@ export default function Onboarding() {
                     onClick={() => setSelectedStyle(s.id)}
                     className={`p-4 rounded-xl border text-left transition-all ${
                       selectedStyle === s.id
-                        ? 'border-accent bg-accent-muted'
-                        : 'border-border hover:border-border-hover bg-bg-hover/30'
+                        ? 'border-text bg-bg-card'
+                        : 'border-border hover:border-border-hover'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
@@ -158,7 +158,7 @@ export default function Onboarding() {
                       />
                       <span className="text-sm font-semibold">{s.label}</span>
                       {selectedStyle === s.id && (
-                        <Check className="h-3 w-3 text-accent ml-auto" />
+                        <Check className="h-3 w-3 text-text ml-auto" />
                       )}
                     </div>
                     <span className="text-xs text-text-tertiary">{s.desc}</span>

@@ -37,7 +37,6 @@ export default function Builder() {
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const templatePromptSent = useRef(false);
 
-  // Load pitch
   useEffect(() => {
     if (!id) return;
     pitchApi.get(id).then((p) => {
@@ -47,7 +46,6 @@ export default function Builder() {
     }).catch(() => navigate('/dashboard'));
   }, [id, navigate]);
 
-  // Auto-send template prompt if coming from templates page
   useEffect(() => {
     if (!pitch || templatePromptSent.current) return;
     const prompt = searchParams.get('prompt');
@@ -57,7 +55,6 @@ export default function Builder() {
     }
   }, [pitch, searchParams]);
 
-  // Update iframe preview
   useEffect(() => {
     if (!pitch || !iframeRef.current) return;
     fetch('/api/preview', {
@@ -72,12 +69,10 @@ export default function Builder() {
       .catch(() => {});
   }, [pitch]);
 
-  // Scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
-  // Auto-save
   const triggerAutoSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
@@ -93,7 +88,6 @@ export default function Builder() {
     }, 2000);
   }, [pitch, id]);
 
-  // Chat
   const handleSend = async (customMessage?: string) => {
     const msg = customMessage || chatInput.trim();
     if (!msg || !id || chatLoading) return;
@@ -127,8 +121,8 @@ export default function Builder() {
   if (loading) {
     return (
       <div className="min-h-screen bg-bg flex flex-col items-center justify-center gap-3">
-        <Loader2 className="h-6 w-6 animate-spin text-accent" />
-        <p className="text-xs text-text-tertiary">Loading pitch...</p>
+        <Loader2 className="h-6 w-6 animate-spin text-text-tertiary" />
+        <p className="text-sm text-text-tertiary">Loading pitch...</p>
       </div>
     );
   }
@@ -137,22 +131,22 @@ export default function Builder() {
   const isNewPitch = !hasBlocks && chatMessages.length === 0;
 
   return (
-    <div className="h-screen bg-bg flex flex-col overflow-hidden">
-      {/* Top bar — Mobbin thin header */}
+    <div className="h-screen bg-bg-elevated flex flex-col overflow-hidden">
+      {/* Top bar */}
       <motion.div
         initial={{ opacity: 0, y: -5 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between px-4 h-12 border-b border-border glass shrink-0"
+        className="flex items-center justify-between px-4 h-12 border-b border-border bg-bg shrink-0"
       >
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/dashboard')}
-            className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary hover:text-text transition-colors"
+            className="p-1.5 rounded-lg hover:bg-bg-card text-text-secondary hover:text-text transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <div className="h-6 w-6 rounded-md gradient-accent flex items-center justify-center">
-            <Sparkles className="h-3 w-3 text-white" />
+          <div className="h-6 w-6 rounded-md bg-accent flex items-center justify-center">
+            <Sparkles className="h-3 w-3 text-text-inverted" />
           </div>
           <span className="text-sm font-semibold truncate max-w-[200px]">
             {pitch?.title || 'Pitch Builder'}
@@ -163,8 +157,8 @@ export default function Builder() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* View mode toggle */}
-          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-bg-elevated p-0.5">
+          {/* View mode */}
+          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-bg p-0.5">
             {([
               { mode: 'desktop' as ViewMode, icon: Monitor },
               { mode: 'tablet' as ViewMode, icon: Tablet },
@@ -175,7 +169,7 @@ export default function Builder() {
                 onClick={() => setViewMode(mode)}
                 className={`p-1.5 rounded-md transition-all ${
                   viewMode === mode
-                    ? 'bg-bg-active text-text'
+                    ? 'bg-bg-card text-text'
                     : 'text-text-tertiary hover:text-text'
                 }`}
               >
@@ -188,13 +182,13 @@ export default function Builder() {
           <AnimatePresence mode="wait">
             {saveStatus === 'saving' && (
               <motion.span key="saving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="flex items-center gap-1.5 text-[10px] text-text-tertiary">
+                className="flex items-center gap-1.5 text-[11px] text-text-tertiary">
                 <Loader2 className="h-3 w-3 animate-spin" /> Saving...
               </motion.span>
             )}
             {saveStatus === 'saved' && (
               <motion.span key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="flex items-center gap-1.5 text-[10px] text-success">
+                className="flex items-center gap-1.5 text-[11px] text-success">
                 <Check className="h-3 w-3" /> Saved
               </motion.span>
             )}
@@ -202,29 +196,29 @@ export default function Builder() {
 
           <div className="h-4 w-px bg-border mx-1" />
 
-          <button className="p-1.5 rounded-lg hover:bg-bg-hover text-text-tertiary hover:text-text transition-colors" title="Export">
+          <button className="p-1.5 rounded-lg hover:bg-bg-card text-text-tertiary hover:text-text transition-colors" title="Export">
             <Download className="h-3.5 w-3.5" />
           </button>
-          <button className="p-1.5 rounded-lg hover:bg-bg-hover text-text-tertiary hover:text-text transition-colors" title="Share">
+          <button className="p-1.5 rounded-lg hover:bg-bg-card text-text-tertiary hover:text-text transition-colors" title="Share">
             <Share2 className="h-3.5 w-3.5" />
           </button>
         </div>
       </motion.div>
 
-      {/* Main layout: Chat | Canvas */}
+      {/* Main: Chat | Canvas */}
       <div className="flex flex-1 min-h-0">
         {/* Chat panel */}
-        <div className="w-[400px] shrink-0 border-r border-border flex flex-col bg-bg-elevated">
+        <div className="w-[400px] shrink-0 border-r border-border flex flex-col bg-bg">
           {/* Chat header */}
           <div className="px-5 py-4 border-b border-border">
             <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg gradient-accent flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-white" />
+              <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center">
+                <Sparkles className="h-4 w-4 text-text-inverted" />
               </div>
               <div>
                 <span className="text-xs font-semibold block">Pitch AI</span>
                 <span className="text-[10px] text-text-tertiary">
-                  {isNewPitch ? 'Let\'s build your pitch' : 'Describe changes or ask anything'}
+                  {isNewPitch ? "Let's build your pitch" : 'Describe changes or ask anything'}
                 </span>
               </div>
             </div>
@@ -232,7 +226,6 @@ export default function Builder() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {/* Welcome state for new pitches */}
             {isNewPitch && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -240,12 +233,12 @@ export default function Builder() {
                 transition={{ delay: 0.2 }}
                 className="py-6"
               >
-                <div className="h-14 w-14 rounded-2xl bg-accent-muted flex items-center justify-center mx-auto mb-4">
-                  <MessageSquare className="h-6 w-6 text-accent/40" />
+                <div className="h-14 w-14 rounded-2xl bg-bg-card flex items-center justify-center mx-auto mb-4">
+                  <MessageSquare className="h-6 w-6 text-text-tertiary" />
                 </div>
                 <p className="text-sm font-semibold text-center mb-1">What are you pitching?</p>
                 <p className="text-xs text-text-secondary text-center mb-5 max-w-[280px] mx-auto leading-relaxed">
-                  Tell me about your project — who it's for, what you're proposing, and any style preferences. I'll design a stunning pitch deck.
+                  Tell me about your project — who it's for, what you're proposing, and any style preferences.
                 </p>
 
                 <div className="space-y-2">
@@ -253,7 +246,7 @@ export default function Builder() {
                     <button
                       key={suggestion}
                       onClick={() => handleSend(suggestion)}
-                      className="w-full text-left card px-4 py-3 text-[11px] text-text-secondary hover:text-text transition-all"
+                      className="w-full text-left rounded-xl border border-border px-4 py-3 text-xs text-text-secondary hover:text-text hover:border-border-hover transition-all"
                     >
                       {suggestion}
                     </button>
@@ -271,14 +264,14 @@ export default function Builder() {
                   transition={{ duration: 0.25 }}
                   className={`rounded-xl px-4 py-3 text-xs leading-relaxed ${
                     msg.role === 'user'
-                      ? 'bg-bg-active text-text ml-8 rounded-br-sm'
-                      : 'glass-card text-text-secondary mr-4 rounded-bl-sm'
+                      ? 'bg-accent text-text-inverted ml-8 rounded-br-sm'
+                      : 'bg-bg-card border border-border text-text-secondary mr-4 rounded-bl-sm'
                   }`}
                 >
                   {msg.role === 'assistant' && (
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <Sparkles className="h-2.5 w-2.5 text-accent" />
-                      <span className="text-[9px] font-semibold text-accent">AI</span>
+                      <Sparkles className="h-2.5 w-2.5 text-brand" />
+                      <span className="text-[9px] font-semibold text-brand">AI</span>
                     </div>
                   )}
                   <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -293,9 +286,9 @@ export default function Builder() {
                 className="flex items-center gap-2.5 px-4 py-3 text-xs text-text-tertiary"
               >
                 <div className="flex gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="h-1.5 w-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="h-1.5 w-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span className="h-1.5 w-1.5 rounded-full bg-text-tertiary animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="h-1.5 w-1.5 rounded-full bg-text-tertiary animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="h-1.5 w-1.5 rounded-full bg-text-tertiary animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
                 Designing your pitch...
               </motion.div>
@@ -311,7 +304,7 @@ export default function Builder() {
             >
               <button
                 type="button"
-                className="p-2.5 rounded-lg hover:bg-bg-hover text-text-tertiary hover:text-text transition-colors"
+                className="p-2.5 rounded-lg hover:bg-bg-card text-text-tertiary hover:text-text transition-colors"
                 title="Attach files"
               >
                 <Paperclip className="h-4 w-4" />
@@ -322,12 +315,12 @@ export default function Builder() {
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder={isNewPitch ? 'Describe your pitch...' : 'Ask for changes...'}
                 disabled={chatLoading}
-                className="flex-1 rounded-lg border border-border bg-bg-card px-4 py-2.5 text-xs text-text placeholder:text-text-tertiary focus:border-accent focus:ring-1 focus:ring-accent/30 focus:outline-none transition-all disabled:opacity-50"
+                className="flex-1 rounded-xl border border-border bg-bg px-4 py-2.5 text-xs text-text placeholder:text-text-tertiary focus:border-text focus:ring-0 focus:outline-none transition-all disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={chatLoading || !chatInput.trim()}
-                className="p-2.5 rounded-lg bg-accent hover:bg-accent-hover text-white transition-all active:scale-95 disabled:opacity-30"
+                className="p-2.5 rounded-xl bg-accent hover:bg-accent-hover text-text-inverted transition-all active:scale-95 disabled:opacity-30"
               >
                 <Send className="h-4 w-4" />
               </button>
@@ -336,7 +329,7 @@ export default function Builder() {
         </div>
 
         {/* Canvas */}
-        <div className="flex-1 min-w-0 bg-bg overflow-auto flex justify-center p-6">
+        <div className="flex-1 min-w-0 bg-bg-elevated overflow-auto flex justify-center p-6">
           <div className={`${viewModeWidths[viewMode]} max-w-full transition-all duration-500 ease-out`}>
             {(!showPreview || !hasBlocks) ? (
               <motion.div
@@ -344,13 +337,13 @@ export default function Builder() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex flex-col items-center justify-center h-full text-center py-20"
               >
-                <div className="h-20 w-20 rounded-2xl bg-accent-muted flex items-center justify-center mb-6">
-                  <Eye className="h-8 w-8 text-accent/20" />
+                <div className="h-20 w-20 rounded-2xl bg-bg-card flex items-center justify-center mb-6">
+                  <Eye className="h-8 w-8 text-text-tertiary" />
                 </div>
                 <h2 className="text-lg font-bold mb-2">Your canvas is ready</h2>
                 <p className="text-sm text-text-secondary max-w-xs leading-relaxed">
                   {isNewPitch
-                    ? 'Start by telling the AI about your pitch. It\'ll design it here in real-time.'
+                    ? "Start by telling the AI about your pitch. It'll design it here in real-time."
                     : 'Use the chat to add or modify content. Changes appear here instantly.'}
                 </p>
               </motion.div>
@@ -359,7 +352,7 @@ export default function Builder() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
-                className="rounded-xl border border-border overflow-hidden shadow-2xl shadow-black/30 bg-bg-card glow-accent"
+                className="rounded-2xl border border-border overflow-hidden shadow-[0_4px_40px_rgba(0,0,0,0.08)] bg-bg"
               >
                 <iframe
                   ref={iframeRef}
