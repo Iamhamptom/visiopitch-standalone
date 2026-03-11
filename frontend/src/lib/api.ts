@@ -52,6 +52,12 @@ export const pitches = {
       method: 'POST',
       body: JSON.stringify({ message }),
     }),
+  /** Get public pitch (no auth) */
+  getPublic: (id: string) =>
+    fetch(`${BASE}/pitches/${id}/public`).then(async (res) => {
+      if (!res.ok) throw new Error('Pitch not found');
+      return res.json() as Promise<Pitch>;
+    }),
 };
 
 export const system = {

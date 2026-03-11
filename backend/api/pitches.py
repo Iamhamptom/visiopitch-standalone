@@ -160,6 +160,21 @@ async def chat(pitch_id: str, req: ChatRequest, user: dict = Depends(require_use
     }
 
 
+# ── Public view ──
+
+@router.get("/{pitch_id}/public")
+async def get_public_pitch(pitch_id: str):
+    """Get pitch for public viewing (no auth required)."""
+    sb = get_supabase()
+    result = sb.table("vp_pitches").select("*").eq("id", pitch_id).execute()
+    if not result.data:
+        raise HTTPException(404, "Pitch not found")
+    pitch = result.data[0]
+    # Strip sensitive fields
+    pitch.pop("user_id", None)
+    return pitch
+
+
 # ── LM Studio status ──
 
 @router.get("/system/status")
