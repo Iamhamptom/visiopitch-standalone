@@ -1,14 +1,11 @@
-"""Sandbox API routes — cloud preview management."""
+"""Sandbox API routes — cloud preview management (Supabase backend)."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from backend.db import get_db, Pitch, User
+from backend.db.supabase import get_supabase
 from backend.api.auth import require_user
 from backend.sandbox.cloud import (
     create_preview_sandbox,
-    update_preview_sandbox,
     destroy_preview_sandbox,
     is_cloud_sandbox_available,
 )
@@ -19,52 +16,36 @@ router = APIRouter(prefix="/api/sandbox", tags=["sandbox"])
 
 @router.get("/status")
 async def sandbox_status():
-    """Check if cloud sandbox is available."""
     return {
         "cloud_available": is_cloud_sandbox_available(),
-        "local_available": True,  # Local preview always works
+        "local_available": True,
     }
 
 
 @router.post("/{pitch_id}/preview")
-async def create_preview(
-    pitch_id: str,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Create or update a cloud sandbox preview for a pitch."""
-    result = await db.execute(
-        select(Pitch).where(Pitch.id == pitch_id, Pitch.user_id == user.id)
-    )
-    pitch = result.scalar_one_or_none()
-    if not pitch:
+async def create_preview(pitch_id: str, user: dict = Depends(require_user)):
+    sb = get_supabase()
+    result = sb.table("vp_pitches").select("*").eq("id", pitch_id).eq("user_id", user["id"]).execute()
+    if not result.data:
         raise HTTPException(404, "Pitch not found")
 
+    pitch = result.data[0]
     pitch_data = {
-        "id": pitch.id,
-        "title": pitch.title,
-        "accent_color": pitch.accent_color,
-        "blocks": pitch.blocks or [],
+        "id": pitch["id"],
+        "title": pitch["title"],
+        "accent_color": pitch["accent_color"],
+        "blocks": pitch.get("blocks") or [],
     }
 
     if is_cloud_sandbox_available():
         sandbox_result = await create_preview_sandbox(pitch_data)
         return sandbox_result
     else:
-        # Fallback: return local preview HTML
         html = render_pitch_html(pitch_data)
-        return {
-            "mode": "local",
-            "html": html,
-            "pitch_id": pitch_id,
-        }
+        return {"mode": "local", "html": html, "pitch_id": pitch_id}
 
 
 @router.delete("/{pitch_id}/preview")
-async def delete_preview(
-    pitch_id: str,
-    user: User = Depends(require_user),
-):
-    """Destroy a cloud sandbox."""
+async def delete_preview(pitch_id: str, user: dict = Depends(require_user)):
     result = await destroy_preview_sandbox(pitch_id)
     return result

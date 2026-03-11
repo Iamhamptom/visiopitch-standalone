@@ -1,17 +1,14 @@
-"""Pitch CRUD + chat routes."""
+"""Pitch CRUD + chat routes (Supabase backend)."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
 import json
 import uuid
 
-from backend.db import get_db, Pitch, Conversation, User
+from backend.db.supabase import get_supabase
 from backend.api.auth import require_user
-from backend.ai.llm import chat_stream, chat_complete, check_lm_studio
+from backend.ai.llm import chat_complete, check_lm_studio
 
 router = APIRouter(prefix="/api/pitches", tags=["pitches"])
 
@@ -23,7 +20,7 @@ class CreatePitchRequest(BaseModel):
     industry: str = "general"
     client_name: Optional[str] = None
     client_company: Optional[str] = None
-    accent_color: str = "#3B82F6"
+    accent_color: str = "#6366F1"
 
 
 class UpdatePitchRequest(BaseModel):
@@ -46,129 +43,105 @@ class ChatRequest(BaseModel):
 # ── CRUD ──
 
 @router.get("")
-async def list_pitches(
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Pitch)
-        .where(Pitch.user_id == user.id)
-        .order_by(Pitch.updated_at.desc())
-    )
-    pitches = result.scalars().all()
-    return [_serialize_pitch(p) for p in pitches]
+async def list_pitches(user: dict = Depends(require_user)):
+    sb = get_supabase()
+    result = sb.table("vp_pitches") \
+        .select("*") \
+        .eq("user_id", user["id"]) \
+        .order("updated_at", desc=True) \
+        .execute()
+    return result.data
 
 
 @router.post("")
-async def create_pitch(
-    req: CreatePitchRequest,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    pitch = Pitch(
-        user_id=user.id,
-        title=req.title,
-        industry=req.industry,
-        client_name=req.client_name,
-        client_company=req.client_company,
-        accent_color=req.accent_color,
-        blocks=[],
-        brand_config={},
-        facts=[],
-    )
-    db.add(pitch)
-    await db.commit()
-    await db.refresh(pitch)
-    return _serialize_pitch(pitch)
+async def create_pitch(req: CreatePitchRequest, user: dict = Depends(require_user)):
+    sb = get_supabase()
+    data = {
+        "user_id": user["id"],
+        "title": req.title,
+        "industry": req.industry,
+        "client_name": req.client_name,
+        "client_company": req.client_company,
+        "accent_color": req.accent_color,
+        "blocks": [],
+        "brand_config": {},
+        "facts": [],
+    }
+    result = sb.table("vp_pitches").insert(data).execute()
+    return result.data[0]
 
 
 @router.get("/{pitch_id}")
-async def get_pitch(
-    pitch_id: str,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    pitch = await _get_user_pitch(pitch_id, user.id, db)
-    return _serialize_pitch(pitch)
+async def get_pitch(pitch_id: str, user: dict = Depends(require_user)):
+    pitch = _get_user_pitch(pitch_id, user["id"])
+    return pitch
 
 
 @router.patch("/{pitch_id}")
-async def update_pitch(
-    pitch_id: str,
-    req: UpdatePitchRequest,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    pitch = await _get_user_pitch(pitch_id, user.id, db)
+async def update_pitch(pitch_id: str, req: UpdatePitchRequest, user: dict = Depends(require_user)):
+    _get_user_pitch(pitch_id, user["id"])  # verify ownership
 
-    for field, value in req.model_dump(exclude_none=True).items():
-        setattr(pitch, field, value)
+    update_data = req.model_dump(exclude_none=True)
+    if not update_data:
+        raise HTTPException(400, "No fields to update")
 
-    await db.commit()
-    await db.refresh(pitch)
-    return _serialize_pitch(pitch)
+    sb = get_supabase()
+    result = sb.table("vp_pitches").update(update_data).eq("id", pitch_id).execute()
+    return result.data[0]
 
 
 @router.delete("/{pitch_id}")
-async def delete_pitch(
-    pitch_id: str,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    pitch = await _get_user_pitch(pitch_id, user.id, db)
-    await db.delete(pitch)
-    await db.commit()
+async def delete_pitch(pitch_id: str, user: dict = Depends(require_user)):
+    _get_user_pitch(pitch_id, user["id"])  # verify ownership
+
+    sb = get_supabase()
+    sb.table("vp_pitches").delete().eq("id", pitch_id).execute()
     return {"deleted": True}
 
 
 # ── Chat ──
 
 @router.post("/{pitch_id}/chat")
-async def chat(
-    pitch_id: str,
-    req: ChatRequest,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    pitch = await _get_user_pitch(pitch_id, user.id, db)
+async def chat(pitch_id: str, req: ChatRequest, user: dict = Depends(require_user)):
+    pitch = _get_user_pitch(pitch_id, user["id"])
+    sb = get_supabase()
 
     # Load or create conversation
-    conv_result = await db.execute(
-        select(Conversation).where(Conversation.pitch_id == pitch_id)
-    )
-    conv = conv_result.scalar_one_or_none()
-    if not conv:
-        conv = Conversation(pitch_id=pitch_id, messages=[])
-        db.add(conv)
-        await db.commit()
-        await db.refresh(conv)
+    conv_result = sb.table("vp_conversations").select("*").eq("pitch_id", pitch_id).execute()
+    if conv_result.data:
+        conv = conv_result.data[0]
+    else:
+        conv_insert = sb.table("vp_conversations").insert({"pitch_id": pitch_id, "messages": []}).execute()
+        conv = conv_insert.data[0]
 
     # Add user message
-    messages = conv.messages or []
+    messages = conv.get("messages") or []
     messages.append({"role": "user", "content": req.message})
 
-    # Build pitch context for the AI
+    # Build pitch context
     pitch_context = {
-        "title": pitch.title,
-        "industry": pitch.industry,
-        "client_name": pitch.client_name,
-        "client_company": pitch.client_company,
-        "accent_color": pitch.accent_color,
-        "blocks": pitch.blocks or [],
-        "block_count": len(pitch.blocks or []),
+        "title": pitch["title"],
+        "industry": pitch["industry"],
+        "client_name": pitch.get("client_name"),
+        "client_company": pitch.get("client_company"),
+        "accent_color": pitch["accent_color"],
+        "blocks": pitch.get("blocks") or [],
+        "block_count": len(pitch.get("blocks") or []),
     }
 
-    # Get AI response (non-streaming for tool use reliability)
+    # Get AI response
     result = await chat_complete(messages, pitch_context)
 
-    # Process tool calls — apply mutations to pitch
+    # Process tool calls
     tool_results = []
     if result.get("tool_calls"):
         for tc in result["tool_calls"]:
-            outcome = await _apply_tool_call(tc["name"], tc["arguments"], pitch, db)
+            outcome = _apply_tool_call(tc["name"], tc["arguments"], pitch, sb, pitch_id)
             tool_results.append({"tool": tc["name"], "result": outcome})
+        # Reload pitch after mutations
+        pitch = _get_user_pitch(pitch_id, user["id"])
 
-    # Save assistant message to conversation
+    # Build assistant message
     assistant_content = result.get("content") or ""
     if tool_results:
         tool_summary = ", ".join(t["tool"] for t in tool_results)
@@ -178,37 +151,13 @@ async def chat(
             assistant_content = f"Done! [Applied: {tool_summary}]"
 
     messages.append({"role": "assistant", "content": assistant_content})
-    conv.messages = messages
-    await db.commit()
+    sb.table("vp_conversations").update({"messages": messages}).eq("id", conv["id"]).execute()
 
     return {
         "message": assistant_content,
         "tool_results": tool_results,
-        "pitch": _serialize_pitch(pitch),
+        "pitch": pitch,
     }
-
-
-@router.post("/{pitch_id}/chat/stream")
-async def chat_streaming(
-    pitch_id: str,
-    req: ChatRequest,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    pitch = await _get_user_pitch(pitch_id, user.id, db)
-
-    pitch_context = {
-        "title": pitch.title,
-        "industry": pitch.industry,
-        "blocks": pitch.blocks or [],
-    }
-
-    messages = [{"role": "user", "content": req.message}]
-
-    return StreamingResponse(
-        chat_stream(messages, pitch_context),
-        media_type="text/event-stream",
-    )
 
 
 # ── LM Studio status ──
@@ -220,32 +169,37 @@ async def system_status():
 
 # ── Helpers ──
 
-async def _get_user_pitch(pitch_id: str, user_id: str, db: AsyncSession) -> Pitch:
-    result = await db.execute(
-        select(Pitch).where(Pitch.id == pitch_id, Pitch.user_id == user_id)
-    )
-    pitch = result.scalar_one_or_none()
-    if not pitch:
+def _get_user_pitch(pitch_id: str, user_id: str) -> dict:
+    sb = get_supabase()
+    result = sb.table("vp_pitches").select("*").eq("id", pitch_id).eq("user_id", user_id).execute()
+    if not result.data:
         raise HTTPException(404, "Pitch not found")
-    return pitch
+    return result.data[0]
 
 
-async def _apply_tool_call(name: str, args: dict, pitch: Pitch, db: AsyncSession) -> str:
-    """Apply an AI tool call to mutate the pitch."""
-    blocks = list(pitch.blocks or [])
+def _apply_tool_call(name: str, args: dict, pitch: dict, sb, pitch_id: str) -> str:
+    """Apply an AI tool call to mutate the pitch in Supabase."""
+    blocks = list(pitch.get("blocks") or [])
 
     if name == "generate_pitch":
-        pitch.title = args.get("title", pitch.title)
-        pitch.industry = args.get("industry", pitch.industry)
-        pitch.client_name = args.get("client_name", pitch.client_name)
-        pitch.client_company = args.get("client_company", pitch.client_company)
-        pitch.accent_color = args.get("accent_color", pitch.accent_color)
+        update = {}
+        if "title" in args:
+            update["title"] = args["title"]
+        if "industry" in args:
+            update["industry"] = args["industry"]
+        if "client_name" in args:
+            update["client_name"] = args["client_name"]
+        if "client_company" in args:
+            update["client_company"] = args["client_company"]
+        if "accent_color" in args:
+            update["accent_color"] = args["accent_color"]
+
         new_blocks = args.get("blocks", [])
-        pitch.blocks = [
+        update["blocks"] = [
             {"id": str(uuid.uuid4()), "type": b["type"], "props": b.get("props", {}), "visible": True}
             for b in new_blocks
         ]
-        await db.commit()
+        sb.table("vp_pitches").update(update).eq("id", pitch_id).execute()
         return f"Generated pitch with {len(new_blocks)} blocks"
 
     elif name == "add_block":
@@ -263,16 +217,14 @@ async def _apply_tool_call(name: str, args: dict, pitch: Pitch, db: AsyncSession
             blocks.insert(cta_idx, block)
         else:
             blocks.append(block)
-        pitch.blocks = blocks
-        await db.commit()
+        sb.table("vp_pitches").update({"blocks": blocks}).eq("id", pitch_id).execute()
         return f"Added {args['type']} block"
 
     elif name == "edit_block":
         idx = args.get("block_index", 0)
         if 0 <= idx < len(blocks):
             blocks[idx]["props"] = {**blocks[idx].get("props", {}), **args.get("props", {})}
-            pitch.blocks = blocks
-            await db.commit()
+            sb.table("vp_pitches").update({"blocks": blocks}).eq("id", pitch_id).execute()
             return f"Updated block {idx}"
         return "Block index out of range"
 
@@ -280,35 +232,17 @@ async def _apply_tool_call(name: str, args: dict, pitch: Pitch, db: AsyncSession
         idx = args.get("block_index", 0)
         if 0 <= idx < len(blocks):
             removed = blocks.pop(idx)
-            pitch.blocks = blocks
-            await db.commit()
+            sb.table("vp_pitches").update({"blocks": blocks}).eq("id", pitch_id).execute()
             return f"Removed {removed.get('type', 'unknown')} block"
         return "Block index out of range"
 
     elif name == "update_meta":
+        update = {}
         for key in ("title", "accent_color", "client_name", "client_company", "industry"):
             if key in args:
-                setattr(pitch, key, args[key])
-        await db.commit()
+                update[key] = args[key]
+        if update:
+            sb.table("vp_pitches").update(update).eq("id", pitch_id).execute()
         return "Updated pitch metadata"
 
     return f"Unknown tool: {name}"
-
-
-def _serialize_pitch(pitch: Pitch) -> dict:
-    return {
-        "id": pitch.id,
-        "user_id": pitch.user_id,
-        "title": pitch.title,
-        "description": pitch.description,
-        "industry": pitch.industry,
-        "status": pitch.status,
-        "client_name": pitch.client_name,
-        "client_company": pitch.client_company,
-        "accent_color": pitch.accent_color,
-        "blocks": pitch.blocks or [],
-        "brand_config": pitch.brand_config or {},
-        "facts": pitch.facts or [],
-        "created_at": pitch.created_at.isoformat() if pitch.created_at else None,
-        "updated_at": pitch.updated_at.isoformat() if pitch.updated_at else None,
-    }

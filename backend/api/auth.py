@@ -1,18 +1,17 @@
-"""Auth routes — register, login, me."""
+"""Auth routes — register, login, me (Supabase backend)."""
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from pydantic import BaseModel, EmailStr
+import os
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 from hashlib import sha256
 from jose import jwt
 from datetime import datetime, timedelta, timezone
 
-from backend.db import get_db, User
+from backend.db.supabase import get_supabase
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-SECRET_KEY = "visiopitch-local-dev-secret"
+SECRET_KEY = os.environ.get("JWT_SECRET", "visiopitch-local-dev-secret")
 ALGORITHM = "HS256"
 
 
@@ -45,57 +44,47 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/register")
-async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(req: RegisterRequest):
+    sb = get_supabase()
+
     # Check if email exists
-    existing = await db.execute(select(User).where(User.email == req.email))
-    if existing.scalar_one_or_none():
+    existing = sb.table("vp_users").select("id").eq("email", req.email).execute()
+    if existing.data:
         raise HTTPException(400, "Email already registered")
 
-    user = User(
-        email=req.email,
-        name=req.name,
-        password_hash=hash_password(req.password),
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    result = sb.table("vp_users").insert({
+        "email": req.email,
+        "name": req.name,
+        "password_hash": hash_password(req.password),
+    }).execute()
 
+    user = result.data[0]
     return {
-        "token": create_token(user.id),
-        "user": {"id": user.id, "email": user.email, "name": user.name},
+        "token": create_token(user["id"]),
+        "user": {"id": user["id"], "email": user["email"], "name": user["name"]},
     }
 
 
 @router.post("/login")
-async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == req.email))
-    user = result.scalar_one_or_none()
+async def login(req: LoginRequest):
+    sb = get_supabase()
 
-    if not user or user.password_hash != hash_password(req.password):
+    result = sb.table("vp_users").select("*").eq("email", req.email).execute()
+    if not result.data:
+        raise HTTPException(401, "Invalid credentials")
+
+    user = result.data[0]
+    if user["password_hash"] != hash_password(req.password):
         raise HTTPException(401, "Invalid credentials")
 
     return {
-        "token": create_token(user.id),
-        "user": {"id": user.id, "email": user.email, "name": user.name},
+        "token": create_token(user["id"]),
+        "user": {"id": user["id"], "email": user["email"], "name": user["name"]},
     }
 
 
-async def get_current_user(
-    db: AsyncSession = Depends(get_db),
-    authorization: str | None = None,
-) -> User:
-    """Extract user from Authorization header."""
-    from fastapi import Request
-
-    # This will be overridden with proper header extraction in the dependency
-    raise HTTPException(401, "Not authenticated")
-
-
-# Proper dependency that reads the header
-from fastapi import Request
-
-
-async def require_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
+async def require_user(request: Request) -> dict:
+    """Extract and validate user from Authorization header."""
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         raise HTTPException(401, "Missing authorization header")
@@ -105,14 +94,15 @@ async def require_user(request: Request, db: AsyncSession = Depends(get_db)) -> 
     if not user_id:
         raise HTTPException(401, "Invalid token")
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
+    sb = get_supabase()
+    result = sb.table("vp_users").select("id, email, name").eq("id", user_id).execute()
+    if not result.data:
         raise HTTPException(401, "User not found")
 
-    return user
+    return result.data[0]
 
 
 @router.get("/me")
-async def me(user: User = Depends(require_user)):
-    return {"id": user.id, "email": user.email, "name": user.name}
+async def me(request: Request):
+    user = await require_user(request)
+    return user

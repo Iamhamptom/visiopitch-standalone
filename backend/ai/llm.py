@@ -252,7 +252,7 @@ Available block types and their props:
 - story: heading, body
 - timeline: heading, items (array of {title, description})
 - deliverables: heading, items (array of {title, description})
-- proof: heading, stats (array of {value, label})
+- proof: heading, stats (array of {value: "string like 1.6M", label: "string"})
 - gallery: heading, images (array of {url, caption})
 - budget: heading, items (array of {item, cost})
 - team: heading, members (array of {name, role})
@@ -287,12 +287,15 @@ You may include a natural language message before the JSON block. The JSON block
         json_matches = re.findall(r'```json\s*(\{.*?\})\s*```', content, re.DOTALL)
         for match in json_matches:
             try:
-                parsed = json.loads(match)
+                # Fix common LLM JSON errors: unquoted values like 10M, trailing commas
+                fixed = re.sub(r':\s*(\d+[KMBkmb]+)', r': "\1"', match)  # 10M → "10M"
+                fixed = re.sub(r',\s*([}\]])', r'\1', fixed)  # trailing commas
+                parsed = json.loads(fixed)
                 action = parsed.pop("action", "generate_pitch")
                 result["tool_calls"].append({"name": action, "arguments": parsed})
-                # Remove JSON block from display content
-                result["content"] = content.replace(f"```json\n{match}\n```", "").strip()
-                result["content"] = result["content"].replace(f"```json{match}```", "").strip()
+                # Clean display content
+                result["content"] = re.sub(r'```json\s*' + re.escape(match) + r'\s*```', '', content).strip()
+                content = result["content"]
             except json.JSONDecodeError:
                 pass
 
