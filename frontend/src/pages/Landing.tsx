@@ -206,7 +206,7 @@ export default function Landing() {
                         key={t.n}
                         className={`p-3 rounded-lg text-center ${i === 1 ? 'bg-accent text-text-inverted' : 'bg-bg-card'}`}
                       >
-                        <div className={`text-[10px] ${i === 1 ? 'text-white/70' : 'text-text-tertiary'}`}>{t.n}</div>
+                        <div className={`text-[10px] ${i === 1 ? 'text-text-inverted/70' : 'text-text-tertiary'}`}>{t.n}</div>
                         <div className="text-sm font-bold">{t.p}</div>
                       </div>
                     ))}

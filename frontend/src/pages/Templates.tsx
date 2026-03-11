@@ -179,7 +179,6 @@ export default function Templates() {
         industry: template.industry,
         accent_color: template.color,
       });
-      // Navigate to builder with the template prompt pre-loaded
       navigate(`/builder/${pitch.id}?prompt=${encodeURIComponent(template.prompt)}`);
     } finally {
       setCreating(null);
@@ -189,24 +188,24 @@ export default function Templates() {
   return (
     <div className="min-h-screen bg-bg">
       {/* Header */}
-      <nav className="sticky top-0 z-50 glass border-b border-border">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between px-6 h-14">
+      <nav className="sticky top-0 z-50 bg-bg/80 backdrop-blur-xl border-b border-border">
+        <div className="max-w-[1200px] mx-auto flex items-center justify-between px-6 h-14">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/dashboard')}
-              className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary hover:text-text transition-colors"
+              className="p-1.5 rounded-lg hover:bg-bg-card text-text-secondary hover:text-text transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
-            <div className="h-7 w-7 rounded-lg gradient-accent flex items-center justify-center">
-              <Sparkles className="h-3.5 w-3.5 text-white" />
+            <div className="h-7 w-7 rounded-lg bg-accent flex items-center justify-center">
+              <Sparkles className="h-3.5 w-3.5 text-text-inverted" />
             </div>
             <span className="font-semibold text-sm">Templates</span>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-[1400px] mx-auto px-6 py-8">
+      <div className="max-w-[1200px] mx-auto px-6 py-8">
         {/* Title + Search */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold tracking-tight mb-1">Start with a template</h1>
@@ -217,13 +216,13 @@ export default function Templates() {
           <div className="flex items-center gap-4">
             {/* Search */}
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-tertiary" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-tertiary" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search templates..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-bg-elevated text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none transition-all"
+                className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-border bg-bg text-sm focus:border-text focus:ring-0 outline-none transition-all"
               />
             </div>
 
@@ -233,7 +232,7 @@ export default function Templates() {
                 <button
                   key={cat}
                   onClick={() => setCategory(cat)}
-                  className={`whitespace-nowrap ${category === cat ? 'chip chip-accent' : 'chip'}`}
+                  className={`whitespace-nowrap ${category === cat ? 'chip chip-active' : 'chip'}`}
                 >
                   {cat}
                 </button>
@@ -242,7 +241,7 @@ export default function Templates() {
           </div>
         </div>
 
-        {/* Grid — Mobbin-style */}
+        {/* Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filtered.map((template, i) => {
             const Icon = template.icon;
@@ -252,27 +251,27 @@ export default function Templates() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04, duration: 0.3 }}
-                className="group card overflow-hidden cursor-pointer"
+                className="group relative rounded-2xl border border-border bg-bg overflow-hidden cursor-pointer transition-all hover:border-border-hover hover:shadow-[0_2px_20px_rgba(0,0,0,0.04)]"
                 onClick={() => handleUseTemplate(template)}
               >
-                {/* Color bar */}
+                {/* Color area */}
                 <div
                   className="h-28 flex items-center justify-center transition-all duration-300 group-hover:h-32"
                   style={{
-                    background: `linear-gradient(135deg, ${template.color}15, ${template.color}08)`,
-                    borderBottom: `1px solid ${template.color}20`,
+                    background: `linear-gradient(135deg, ${template.color}12, ${template.color}06)`,
+                    borderBottom: `1px solid ${template.color}15`,
                   }}
                 >
                   <div
                     className="h-12 w-12 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
-                    style={{ backgroundColor: `${template.color}20` }}
+                    style={{ backgroundColor: `${template.color}15` }}
                   >
                     <Icon className="h-5 w-5" style={{ color: template.color }} />
                   </div>
                 </div>
 
                 <div className="p-5">
-                  <h3 className="text-sm font-semibold mb-1 group-hover:text-accent-hover transition-colors">
+                  <h3 className="text-sm font-semibold mb-1">
                     {template.title}
                   </h3>
                   <p className="text-xs text-text-secondary leading-relaxed mb-3">
@@ -293,8 +292,8 @@ export default function Templates() {
 
                 {/* Loading overlay */}
                 {creating === template.id && (
-                  <div className="absolute inset-0 bg-bg/80 flex items-center justify-center rounded-xl">
-                    <Loader2 className="h-5 w-5 animate-spin text-accent" />
+                  <div className="absolute inset-0 bg-bg/80 flex items-center justify-center rounded-2xl">
+                    <Loader2 className="h-5 w-5 animate-spin text-text-tertiary" />
                   </div>
                 )}
               </motion.div>
