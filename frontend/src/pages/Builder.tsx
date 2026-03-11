@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { pitches as pitchApi, Pitch, ChatResponse } from '../lib/api';
+import { pitches as pitchApi, type Pitch, type ChatResponse } from '../lib/api';
 import {
-  ArrowLeft, Send, Loader2, Sparkles, Save, Check,
-  Monitor, Tablet, Smartphone, Share2, Download, BarChart3,
+  ArrowLeft, Send, Loader2, Sparkles, Check,
+  Monitor, Tablet, Smartphone, Share2, Download,
 } from 'lucide-react';
 
 type ViewMode = 'desktop' | 'tablet' | 'mobile';
@@ -18,12 +18,11 @@ export default function Builder() {
   const [chatMessages, setChatMessages] = useState<{ role: string; content: string }[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('desktop');
-  const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Load pitch
   useEffect(() => {

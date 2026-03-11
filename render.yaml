@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: visiopitch-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///data/visiopitch.db
+      - key: CORS_ORIGINS
+        value: https://visiopitch-standalone.vercel.app,http://localhost:5173
+    disk:
+      name: visiopitch-data
+      mountPath: /data
+      sizeGB: 1
+    healthCheckPath: /api/health

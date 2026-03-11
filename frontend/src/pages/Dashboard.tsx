@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { pitches as pitchApi, Pitch, system } from '../lib/api';
+import { pitches as pitchApi, type Pitch, system } from '../lib/api';
 import {
-  Sparkles, Plus, MoreHorizontal, Clock, CheckCircle2,
+  Sparkles, Plus, Clock, CheckCircle2,
   Send, XCircle, FileText, LogOut, Loader2, Wifi, WifiOff,
   Trash2,
 } from 'lucide-react';
