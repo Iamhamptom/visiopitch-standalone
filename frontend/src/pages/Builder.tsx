@@ -253,14 +253,14 @@ export default function Builder() {
 
           <div className="h-4 w-px bg-white/[0.06] mx-1" />
 
-          {/* Export */}
+          {/* Download */}
           <button
             onClick={handleExport}
             disabled={!hasContent}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors disabled:opacity-20"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20 transition-colors disabled:opacity-20 disabled:border-transparent disabled:bg-transparent disabled:text-white/20"
           >
             <Download className="h-3.5 w-3.5" />
-            <span className="hidden md:inline">Export</span>
+            <span>Download</span>
           </button>
 
           {/* Share */}
