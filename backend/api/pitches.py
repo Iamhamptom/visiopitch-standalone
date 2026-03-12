@@ -379,9 +379,12 @@ async def create_share(pitch_id: str, req: CreateShareRequest, user: dict = Depe
         "pitch_id": pitch_id,
         "token": token,
         "allow_download": req.allow_download,
+        "is_active": True,
+        "created_by": user["id"],
     }
     if req.password:
-        data["password"] = req.password
+        import bcrypt
+        data["password_hash"] = bcrypt.hashpw(req.password.encode(), bcrypt.gensalt()).decode()
     if req.expires_hours:
         data["expires_at"] = (datetime.now(timezone.utc) + timedelta(hours=req.expires_hours)).isoformat()
 
@@ -458,8 +461,8 @@ async def record_view(pitch_id: str, req: RecordViewRequest, request: Request):
 
     data = {
         "pitch_id": pitch_id,
-        "viewer_ip": request.client.host if request.client else "unknown",
-        "viewer_ua": request.headers.get("user-agent", "")[:500],
+        "ip_address": request.client.host if request.client else "unknown",
+        "user_agent": request.headers.get("user-agent", "")[:500],
         "duration_seconds": req.duration_seconds or 0,
         "scroll_depth": min(max(req.scroll_depth or 0, 0.0), 1.0),
     }
@@ -481,11 +484,11 @@ async def get_analytics(pitch_id: str, user: dict = Depends(require_user)):
     views = sb.table("vp_pitch_views") \
         .select("*") \
         .eq("pitch_id", pitch_id) \
-        .order("created_at", desc=True) \
+        .order("viewed_at", desc=True) \
         .limit(500).execute()
 
     total_views = len(views.data)
-    unique_ips = len(set(v.get("viewer_ip", "") for v in views.data))
+    unique_ips = len(set(v.get("ip_address", "") for v in views.data))
     durations = [v.get("duration_seconds", 0) for v in views.data if v.get("duration_seconds")]
     avg_duration = sum(durations) / len(durations) if durations else 0
     depths = [v.get("scroll_depth", 0) for v in views.data if v.get("scroll_depth")]
