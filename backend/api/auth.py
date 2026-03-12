@@ -1,9 +1,9 @@
 """Auth routes — register, login, me (Supabase backend)."""
 
 import os
+import bcrypt
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
-from hashlib import sha256
 from jose import jwt
 from datetime import datetime, timedelta, timezone
 
@@ -11,16 +11,22 @@ from backend.db.supabase import get_supabase
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-SECRET_KEY = os.environ.get("JWT_SECRET", "visiopitch-local-dev-secret")
+SECRET_KEY = os.environ.get("JWT_SECRET", "")
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET environment variable is required")
 ALGORITHM = "HS256"
 
 
 def hash_password(password: str) -> str:
-    return sha256(password.encode()).hexdigest()
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+
+def verify_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
 def create_token(user_id: str) -> str:
-    exp = datetime.now(timezone.utc) + timedelta(days=30)
+    exp = datetime.now(timezone.utc) + timedelta(days=7)
     return jwt.encode({"sub": user_id, "exp": exp}, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -74,7 +80,7 @@ async def login(req: LoginRequest):
         raise HTTPException(401, "Invalid credentials")
 
     user = result.data[0]
-    if user["password_hash"] != hash_password(req.password):
+    if not verify_password(req.password, user["password_hash"]):
         raise HTTPException(401, "Invalid credentials")
 
     return {

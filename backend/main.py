@@ -1,4 +1,4 @@
-"""VisioPitch Standalone — FastAPI server with Supabase + cloud sandbox."""
+"""VisioPitch Standalone — FastAPI server with Supabase."""
 
 import os
 from pathlib import Path
@@ -13,10 +13,8 @@ load_dotenv()
 
 from backend.api.auth import router as auth_router
 from backend.api.pitches import router as pitches_router
-from backend.api.sandbox import router as sandbox_router
-from backend.sandbox.renderer import render_pitch_html
-from backend.sandbox.cloud import is_cloud_sandbox_available
 from backend.ai.llm import check_lm_studio
+from backend.middleware.rate_limit import RateLimitMiddleware
 
 FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
 
@@ -26,12 +24,10 @@ async def lifespan(app: FastAPI):
     """Startup: check engines."""
     ai_status = await check_lm_studio()
     engine = ai_status.get("engine", "none")
-    cloud_sandbox = "enabled" if is_cloud_sandbox_available() else "local only"
 
     port = os.environ.get("PORT", "8000")
     print(f"✦ VisioPitch server ready — http://localhost:{port}")
     print(f"  AI engine: {engine}")
-    print(f"  Sandbox: {cloud_sandbox}")
     print(f"  Database: Supabase")
     print(f"  API docs: http://localhost:{port}/docs")
     yield
@@ -39,8 +35,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="VisioPitch",
-    description="AI-powered pitch builder with cloud sandbox",
-    version="1.0.0",
+    description="AI-powered pitch builder",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -58,10 +54,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate limiting
+app.add_middleware(RateLimitMiddleware)
+
 # Routes
 app.include_router(auth_router)
 app.include_router(pitches_router)
-app.include_router(sandbox_router)
 
 
 @app.get("/api/health")
@@ -70,18 +68,10 @@ async def health():
     return {
         "status": "ok",
         "app": "visiopitch",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "ai_engine": ai_status.get("engine", "none"),
-        "cloud_sandbox": is_cloud_sandbox_available(),
         "database": "supabase",
     }
-
-
-@app.post("/api/preview")
-async def preview_pitch(pitch: dict):
-    """Render a pitch to sandboxed HTML for iframe preview."""
-    html = render_pitch_html(pitch)
-    return HTMLResponse(content=html)
 
 
 # Local dev: serve built React frontend (not needed on Vercel)

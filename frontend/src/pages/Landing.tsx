@@ -1,8 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Play, Sparkles, Zap, Share2, BarChart3, Layers } from 'lucide-react';
-
-const TRUSTED_BY = ['Spotify', 'Netflix', 'Airbnb', 'Stripe', 'Notion'];
+import { ArrowRight, Sparkles, Zap, Share2, BarChart3, Layers } from 'lucide-react';
 
 const FEATURES = [
   {
@@ -97,10 +95,6 @@ export default function Landing() {
             >
               Start Building Free
               <ArrowRight className="h-4 w-4" />
-            </button>
-            <button className="btn-secondary text-[15px] py-3 px-7">
-              <Play className="h-4 w-4" />
-              Watch Demo
             </button>
           </div>
         </motion.div>
@@ -218,16 +212,6 @@ export default function Landing() {
         </motion.div>
       </section>
 
-      {/* ── Trusted by ── */}
-      <section className="border-y border-border py-8">
-        <div className="max-w-[1200px] mx-auto px-6 flex items-center justify-center gap-12">
-          <span className="text-xs text-text-tertiary">Trusted by teams at</span>
-          {TRUSTED_BY.map((name) => (
-            <span key={name} className="text-sm font-semibold text-text-tertiary/60">{name}</span>
-          ))}
-        </div>
-      </section>
-
       {/* ── Template gallery (Mobbin-style cards) ── */}
       <section className="max-w-[1200px] mx-auto px-6 py-24">
         <motion.div
@@ -323,7 +307,7 @@ export default function Landing() {
           Ready to build your next pitch?
         </h2>
         <p className="text-text-secondary max-w-md mx-auto mb-10">
-          Join thousands of professionals who close deals faster with AI-powered proposals.
+          Build professional pitches with AI — from idea to polished proposal in minutes.
         </p>
         <div className="flex items-center justify-center gap-3">
           <button

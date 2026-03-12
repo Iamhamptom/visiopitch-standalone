@@ -58,17 +58,56 @@ export const pitches = {
       if (!res.ok) throw new Error('Pitch not found');
       return res.json() as Promise<Pitch>;
     }),
+  /** Get shared pitch by token (no auth) */
+  getShared: (token: string) =>
+    fetch(`${BASE}/pitches/s/${token}`).then(async (res) => {
+      if (!res.ok) {
+        if (res.status === 410) throw new Error('Share link expired');
+        throw new Error('Pitch not found');
+      }
+      return res.json() as Promise<Pitch & { allow_download: boolean }>;
+    }),
+
+  // Versions
+  listVersions: (id: string) =>
+    request<PitchVersion[]>(`/pitches/${id}/versions`),
+  getVersion: (id: string, versionId: string) =>
+    request<PitchVersion & { html_content: string }>(`/pitches/${id}/versions/${versionId}`),
+  restoreVersion: (id: string, versionId: string) =>
+    request<Pitch>(`/pitches/${id}/versions/${versionId}/restore`, { method: 'POST' }),
+
+  // Share
+  createShare: (id: string, data: { password?: string; expires_hours?: number; allow_download?: boolean }) =>
+    request<{ share: PitchShare; url: string }>(`/pitches/${id}/share`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  listShares: (id: string) =>
+    request<PitchShare[]>(`/pitches/${id}/shares`),
+  deleteShare: (id: string, shareId: string) =>
+    request<{ deleted: boolean }>(`/pitches/${id}/shares/${shareId}`, { method: 'DELETE' }),
+
+  // Analytics
+  getAnalytics: (id: string) =>
+    request<PitchAnalytics>(`/pitches/${id}/analytics`),
+  recordView: (id: string, data: { share_token?: string; duration_seconds?: number; scroll_depth?: number }) =>
+    fetch(`${BASE}/pitches/${id}/views`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  // Image
+  generateImage: (id: string, prompt: string, style: string = 'abstract') =>
+    request<{ url: string }>(`/pitches/${id}/generate-image`, {
+      method: 'POST',
+      body: JSON.stringify({ prompt, style }),
+    }),
 };
 
 export const system = {
-  health: () => request<{ status: string; ai_engine: string; cloud_sandbox: boolean }>('/health'),
+  health: () => request<{ status: string; ai_engine: string }>('/health'),
   lmStatus: () => request<{ status: string; engine: string; lm_studio: string; claude: string }>('/pitches/system/status'),
-};
-
-export const sandbox = {
-  status: () => request<{ cloud_available: boolean; local_available: boolean }>('/sandbox/status'),
-  createPreview: (pitchId: string) =>
-    request<{ preview_url?: string; html?: string; mode?: string }>(`/sandbox/${pitchId}/preview`, { method: 'POST' }),
 };
 
 // Types
@@ -115,4 +154,37 @@ export interface ChatResponse {
   message: string;
   tool_results: { tool: string; result: string }[];
   pitch: Pitch;
+}
+
+export interface PitchVersion {
+  id: string;
+  pitch_id: string;
+  version_number: number;
+  message: string | null;
+  created_at: string;
+}
+
+export interface PitchShare {
+  id: string;
+  pitch_id: string;
+  token: string;
+  password: string | null;
+  expires_at: string | null;
+  allow_download: boolean;
+  created_at: string;
+}
+
+export interface PitchAnalytics {
+  total_views: number;
+  unique_viewers: number;
+  avg_duration_seconds: number;
+  avg_scroll_depth: number;
+  recent_views: Array<{
+    id: string;
+    viewer_ip: string;
+    viewer_ua: string;
+    duration_seconds: number;
+    scroll_depth: number;
+    created_at: string;
+  }>;
 }
