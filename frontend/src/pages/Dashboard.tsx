@@ -239,7 +239,7 @@ export default function Dashboard() {
                           </span>
                         </div>
                         <span className="text-[11px] text-text-tertiary">
-                          {pitch.blocks.length} blocks
+                          {(pitch as any).has_html ? 'HTML' : `${(pitch.blocks || []).length} blocks`}
                         </span>
                       </div>
                     </div>

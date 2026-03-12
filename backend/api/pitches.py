@@ -50,10 +50,22 @@ class ChatRequest(BaseModel):
 async def list_pitches(user: dict = Depends(require_user)):
     sb = get_supabase()
     result = sb.table("vp_pitches") \
-        .select("id,title,description,industry,status,client_name,client_company,accent_color,created_at,updated_at") \
+        .select("id,title,description,industry,status,client_name,client_company,accent_color,blocks,created_at,updated_at") \
         .eq("user_id", user["id"]) \
         .order("updated_at", desc=True) \
         .execute()
+    # Add html indicator without sending full html_content in list
+    for p in result.data:
+        p["has_html"] = False
+    # Check which ones have html_content
+    html_check = sb.table("vp_pitches") \
+        .select("id,html_content") \
+        .eq("user_id", user["id"]) \
+        .not_.is_("html_content", "null") \
+        .execute()
+    html_ids = {r["id"] for r in html_check.data}
+    for p in result.data:
+        p["has_html"] = p["id"] in html_ids
     return result.data
 
 
