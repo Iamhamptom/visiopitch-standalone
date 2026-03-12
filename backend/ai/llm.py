@@ -79,13 +79,109 @@ Every pitch HTML document MUST:
 
 ## INDUSTRY-AWARE DESIGN
 Pick design choices that match the industry:
-- **Tech/SaaS**: Clean, minimal, blue/purple accents, monospace details, grid layouts
-- **Music/Entertainment**: Bold, expressive, gradient-heavy, large type, dark luxury
-- **Healthcare**: Clean, trustworthy, green/teal, lots of whitespace, soft radius
-- **Finance**: Professional, navy/gold, data-forward, subtle animations
-- **Agency/Creative**: Experimental layouts, bold colors, asymmetric, editorial feel
-- **Fashion/Luxury**: Serif fonts, gold accents, minimal, high-end photography placeholders
-- **Food/Restaurant**: Warm tones, earthy colors, rounded elements, inviting
+- **Tech/SaaS**: Clean, minimal, blue/purple accents, monospace details, grid layouts. Palette: #00E8FF, #8A00FF, #101014. Fonts: Space Grotesk + Inter
+- **Music/Entertainment**: Bold, expressive, gradient-heavy, large type, dark luxury. Palette: #FF1F8A, #FF6EB4, #0C0C0C. Fonts: Bebas Neue + Heebo
+- **Healthcare**: Clean, trustworthy, green/teal, lots of whitespace, soft radius. Palette: #06b6d4, #14b8a6, #f0fdf4. Fonts: Manrope + Inter
+- **Finance**: Professional, navy/gold, data-forward, subtle animations. Palette: #0A1A3C, #143A75, #BFD8FF, #D9B648. Fonts: IBM Plex Sans + IBM Plex Serif
+- **Agency/Creative**: Experimental layouts, bold colors, asymmetric, editorial feel. Palette: #4158D0, #C850C0, #FFCC70. Fonts: Syne + Inter
+- **Fashion/Luxury**: Serif fonts, gold accents, minimal, Opulence Era style. Palette: #000000, #1A1A1A, #D9B648, #F7EBA5. Fonts: Playfair Display + Raleway
+- **Food/Restaurant**: Warm tones, earthy colors, rounded elements, inviting. Palette: #FF823A, #FF6D8B, #FFD1E4. Fonts: DM Serif Display + DM Sans
+
+## ═══════════════════════════════════════════════
+## DESIGN TOOLKIT — Production CSS Patterns (2025-2026)
+## ═══════════════════════════════════════════════
+
+### COLOR SYSTEM
+Dark backgrounds (never pure #000000):
+- Rich Black: #0a0a0a | Near Black: #0C0C0C | Charcoal: #1A1A1A | Dark Indigo: #101014 | Deep Navy: #050c29
+Surface elevation layers: #0a0a0a → #121212 → #1e1e1e → #252525 → #2d2d2d → #333333
+Text: Primary #FFFFFF, Secondary #d5d9ea, Muted #6b7280
+
+### TYPOGRAPHY PAIRINGS (Google Fonts)
+- DM Serif Display + DM Sans → elegant editorial
+- Space Grotesk + Inter → tech-forward
+- Playfair Display + Raleway → classic luxury
+- Bebas Neue + Heebo → bold impact
+- Sora + Space Mono → digital clarity
+- Prata + Manrope Light → soft sophistication
+
+Scale: Hero clamp(3rem,8vw,6rem), H1 clamp(2.5rem,5vw,4rem), H2 clamp(2rem,4vw,3rem), Body clamp(1rem,1.5vw,1.25rem)
+Letter-spacing: Headlines -0.07em, Subheads -0.03em, Labels 0.05em
+
+### GLASSMORPHISM (use on cards, navs, panels)
+```css
+background: rgba(255,255,255,0.08);
+backdrop-filter: blur(15px) saturate(180%);
+-webkit-backdrop-filter: blur(15px) saturate(180%);
+border: 1px solid rgba(255,255,255,0.18);
+border-radius: 20px;
+box-shadow: 0 8px 32px rgba(31,38,135,0.37);
+```
+Hover: backdrop-filter blur(20px), bg rgba(255,255,255,0.15), translateY(-8px), shadow 0 16px 48px
+
+### AURORA GRADIENT BACKGROUND (use on hero sections)
+```css
+.aurora { background: linear-gradient(-45deg, #0a0a0a, #1a0533, #0a192f, #0d1f22); background-size: 400% 400%; animation: aurora-shift 15s ease infinite; }
+@keyframes aurora-shift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+```
+Premium version: Add ::before and ::after pseudo-elements as floating blurred orbs (600px, border-radius:50%, filter:blur(80px), opacity:0.4) with radial-gradient colors, animated with translateX/Y over 20s
+
+### MESH GRADIENT (static, lightweight)
+```css
+background-color: #0a0a0a;
+background-image: radial-gradient(at 20% 30%, #7c3aed33 0px, transparent 50%), radial-gradient(at 80% 20%, #06b6d433 0px, transparent 50%), radial-gradient(at 50% 80%, #ec489933 0px, transparent 50%);
+```
+
+### GRAIN/NOISE TEXTURE OVERLAY
+```css
+.grainy::before { content:""; position:absolute; inset:0; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23a)'/%3E%3C/svg%3E"); background-size:182px; opacity:0.08; pointer-events:none; z-index:1; }
+```
+
+### DOT GRID BACKGROUND
+```css
+background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);
+background-size: 16px 16px;
+```
+
+### BENTO GRID LAYOUT (trending 2025-2026)
+```css
+display: grid; gap: 1rem; grid-template-columns: repeat(12, minmax(0,1fr)); grid-auto-rows: 90px; grid-auto-flow: dense;
+/* Spans: .wide{grid-column:span 6;grid-row:span 2} .tall{grid-column:span 4;grid-row:span 3} .hero{grid-column:span 8;grid-row:span 3} */
+```
+
+### SCROLL-REVEAL ANIMATION (add IntersectionObserver JS)
+```css
+.reveal { opacity:0; transform:translateY(30px); transition:opacity 0.6s ease, transform 0.6s ease; }
+.reveal.visible { opacity:1; transform:translateY(0); }
+```
+JS: `document.querySelectorAll('.reveal').forEach(el => new IntersectionObserver(([e])=>{if(e.isIntersecting){el.classList.add('visible')}},{threshold:0.1}).observe(el));`
+
+### GRADIENT TEXT
+```css
+background: linear-gradient(135deg, ACCENT1, ACCENT2);
+-webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+```
+Gold metallic: linear-gradient(135deg, #D9B648, #F7EBA5, #D9B648)
+Shimmer: background-size 200% auto, animate background-position to 200%
+
+### BUTTON STYLES
+Primary: background linear-gradient(135deg, ACCENT, darker), padding 14px 48px, border-radius 12px, hover translateY(-2px) + box-shadow
+Ghost: transparent bg, border 1px solid rgba(255,255,255,0.2), hover bg rgba(255,255,255,0.05)
+Glass: rgba(255,255,255,0.1) bg + backdrop-filter blur(10px), border-radius 50px (pill shape)
+Pulse: @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(ACCENT,0.5)} 50%{box-shadow:0 0 0 12px rgba(ACCENT,0)} }
+
+### SECTION TRANSITIONS
+Gradient line: height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent)
+Dot separator: 3 small circles (4px) centered with gap:8px
+
+### CARD STYLES
+Glow: border 1px solid rgba(ACCENT,0.3), box-shadow 0 0 20px rgba(ACCENT,0.15)
+Gradient border: ::before pseudo with inset:-1px, background linear-gradient, z-index:-1, border-radius+1px
+Hover lift: transition all 0.3s cubic-bezier(0.4,0,0.2,1), hover translateY(-4px) + shadow 0 20px 40px rgba(0,0,0,0.3)
+
+### 2025-2026 TRENDS TO FOLLOW
+IN: Dark mode default, glassmorphism, bento grids, aurora gradients, grain textures, bold serif+sans pairings, gradient text, micro-animations, asymmetric layouts, floating pill navbars, variable typography with clamp()
+OUT: Pure black backgrounds, heavy drop shadows, stock illustrations, >2 typefaces, cluttered slides, flat solid backgrounds, script fonts, body text <16px
 
 ## TOOL: set_html
 Call this with a COMPLETE HTML document. The `html` field should contain the ENTIRE page.
