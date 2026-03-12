@@ -1,6 +1,7 @@
 """Auth routes — register, login, me (Supabase backend)."""
 
 import os
+import hashlib
 import bcrypt
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -22,7 +23,13 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode(), hashed.encode())
+    """Verify password — supports bcrypt ($2b$) and legacy SHA-256 (64-char hex)."""
+    if hashed.startswith("$2b$") or hashed.startswith("$2a$"):
+        return bcrypt.checkpw(password.encode(), hashed.encode())
+    # Legacy SHA-256 fallback
+    if len(hashed) == 64:
+        return hashlib.sha256(password.encode()).hexdigest() == hashed
+    return False
 
 
 def create_token(user_id: str) -> str:
@@ -82,6 +89,12 @@ async def login(req: LoginRequest):
     user = result.data[0]
     if not verify_password(req.password, user["password_hash"]):
         raise HTTPException(401, "Invalid credentials")
+
+    # Auto-upgrade legacy SHA-256 hashes to bcrypt
+    if not user["password_hash"].startswith("$2b$"):
+        sb.table("vp_users").update({
+            "password_hash": hash_password(req.password),
+        }).eq("id", user["id"]).execute()
 
     return {
         "token": create_token(user["id"]),
